@@ -145,7 +145,7 @@ export class NordpoolPlatformAccessory {
     // current hour price
     if (this.pricing.today.length === 24) {
       this.pricing.currently = this.pricing.today[currentHour]['price'];
-      this.platform.log.info(`Current hour: ${currentHour}; Price: ${this.pricing.currently}`);
+      this.platform.log.info(`Current hour: ${currentHour}; Price: ${this.pricing.currently} cents`);
     } else {
       this.platform.log.warn('WARN: Unable to determine current hour Nordpool price because data not available');
     }
