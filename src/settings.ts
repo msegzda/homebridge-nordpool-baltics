@@ -1,9 +1,7 @@
-/**
- * This is the name of the platform that users will use to register the plugin in the Homebridge config.json
- */
-export const PLATFORM_NAME = 'ExampleHomebridgePlugin';
+/* eslint @typescript-eslint/no-var-requires: "off" */
+const pkg = require('../package.json');
 
-/**
- * This must match the name of your plugin as defined the package.json
- */
-export const PLUGIN_NAME = 'homebridge-plugin-name';
+export const PLATFORM_NAME = 'Nordpool';
+export const PLUGIN_NAME = pkg.name;
+export const PLATFORM_MANUFACTURER = pkg.author.name;
+export const PLATFORM_VERSION = pkg.version;

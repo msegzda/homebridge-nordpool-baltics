@@ -1,141 +1,294 @@
-import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
+import { Service, PlatformAccessory } from 'homebridge';
+import { NordpoolPlatform } from './platform';
+import { schedule } from 'node-cron';
+import { DateTime } from 'luxon';
+import NodeCache from 'node-cache';
+import axios from 'axios';
 
-import { ExampleHomebridgePlatform } from './platform';
+interface SensorType { [key: string]: Service | null }
+interface PriceData {
+    day: string;
+    hour: number;
+    price: number;
+  }
 
-/**
- * Platform Accessory
- * An instance of this class is created for each accessory your platform registers
- * Each accessory may expose multiple services of different service types.
- */
-export class ExamplePlatformAccessory {
-  private service: Service;
+export class NordpoolPlatformAccessory {
 
-  /**
-   * These are just used to create a working example
-   * You should implement your own code to track the state of your accessory
-   */
-  private exampleStates = {
-    On: false,
-    Brightness: 100,
+  private areaTimezone = 'Europe/Vilnius'; // same timezone applies to Nordpool zones LT, LV, EE, FI
+
+  private pricing = {
+    today: [] as Array<PriceData>, // all prices of today
+    currently: 0.0001, // default light sensor value cannot be 0
+    cheapestHour: [] as Array<number>, // can be more than 1
+    cheapest4Hours: [] as Array<number>, // can be more than 4
+    cheapest5Hours: [] as Array<number>, // can be more than 5
+    cheapest6Hours: [] as Array<number>, // can be more than 6
+    cheapest7Hours: [] as Array<number>, // can be more than 7
+    cheapest8Hours: [] as Array<number>, // can be more than 8
+    priciestHour: [] as Array<number>, // can be more than one
   };
 
+  private service: SensorType = {
+    currently: null,
+    cheapestHour: null,
+    cheapest4Hours: null,
+    cheapest5Hours: null,
+    cheapest6Hours: null,
+    cheapest7Hours: null,
+    cheapest8Hours: null,
+    priciestHour: null,
+    hourlyTickerSwitch: null,
+  };
+
+  private pricesCache = new NodeCache({ stdTTL: 86400 });
+
   constructor(
-    private readonly platform: ExampleHomebridgePlatform,
+    private readonly platform: NordpoolPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
-
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Default-Manufacturer')
-      .setCharacteristic(this.platform.Characteristic.Model, 'Default-Model')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'Default-Serial');
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Mantas Segzda')
+      .setCharacteristic(this.platform.Characteristic.Model, 'Electricity price sensors')
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'UN783GU921Y0');
 
-    // get the LightBulb service if it exists, otherwise create a new LightBulb service
-    // you can create multiple services for each accessory
-    this.service = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
+    // hourly ticker
+    this.service.hourlyTickerSwitch = this.accessory.getService('Nordpool_hourlyTickerSwitch') || this.accessory.addService(
+      this.platform.Service.Switch, 'Nordpool_hourlyTickerSwitch', 'hourlyTickerSwitch');
 
-    // set the service name, this is what is displayed as the default name on the Home app
-    // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.exampleDisplayName);
+    // init light sensor for current price
+    this.service.currently = this.accessory.getService('Nordpool_currentPrice') || this.accessory.addService(
+      this.platform.Service.LightSensor, 'Nordpool_currentPrice', 'currentPrice');
 
-    // each service must implement at-minimum the "required characteristics" for the given service type
-    // see https://developers.homebridge.io/#/service/Lightbulb
+    // init all dummy occupancy sensors for price levels
+    for (const key of Object.keys(this.service)) {
+      if (/^(cheapest|priciest)/.test(key)) {
+        this.service[key] = this.accessory.getService(`Nordpool_${key}`) || this.accessory.addService(
+          this.platform.Service.OccupancySensor, `Nordpool_${key}`, key);
+      }
+    }
 
-    // register handlers for the On/Off Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(this.setOn.bind(this))                // SET - bind to the `setOn` method below
-      .onGet(this.getOn.bind(this));               // GET - bind to the `getOn` method below
+    this.checkSystemTimezone();
+    this.getPrices();
 
-    // register handlers for the Brightness Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.Brightness)
-      .onSet(this.setBrightness.bind(this));       // SET - bind to the 'setBrightness` method below
+    schedule('0 * * * *', () => {
+      this.getPrices();
+    });
 
-    /**
-     * Creating multiple services of the same type.
-     *
-     * To avoid "Cannot add a Service with the same UUID another Service without also defining a unique 'subtype' property." error,
-     * when creating multiple services of the same type, you need to use the following syntax to specify a name and subtype id:
-     * this.accessory.getService('NAME') || this.accessory.addService(this.platform.Service.Lightbulb, 'NAME', 'USER_DEFINED_SUBTYPE_ID');
-     *
-     * The USER_DEFINED_SUBTYPE must be unique to the platform accessory (if you platform exposes multiple accessories, each accessory
-     * can use the same sub type id.)
-     */
-
-    // Example: add two "motion sensor" services to the accessory
-    const motionSensorOneService = this.accessory.getService('Motion Sensor One Name') ||
-      this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor One Name', 'YourUniqueIdentifier-1');
-
-    const motionSensorTwoService = this.accessory.getService('Motion Sensor Two Name') ||
-      this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor Two Name', 'YourUniqueIdentifier-2');
-
-    /**
-     * Updating characteristics values asynchronously.
-     *
-     * Example showing how to update the state of a Characteristic asynchronously instead
-     * of using the `on('get')` handlers.
-     * Here we change update the motion sensor trigger states on and off every 10 seconds
-     * the `updateCharacteristic` method.
-     *
-     */
-    let motionDetected = false;
-    setInterval(() => {
-      // EXAMPLE - inverse the trigger
-      motionDetected = !motionDetected;
-
-      // push the new value to HomeKit
-      motionSensorOneService.updateCharacteristic(this.platform.Characteristic.MotionDetected, motionDetected);
-      motionSensorTwoService.updateCharacteristic(this.platform.Characteristic.MotionDetected, !motionDetected);
-
-      this.platform.log.debug('Triggering motionSensorOneService:', motionDetected);
-      this.platform.log.debug('Triggering motionSensorTwoService:', !motionDetected);
-    }, 10000);
   }
 
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, turning on a Light bulb.
-   */
-  async setOn(value: CharacteristicValue) {
-    // implement your own code to turn your device on/off
-    this.exampleStates.On = value as boolean;
+  async checkSystemTimezone( ) {
+    const systemTimezone = DateTime.local().toFormat('ZZ');
+    const preferredTimezone = DateTime.local().setZone(this.areaTimezone).toFormat('ZZ');
 
-    this.platform.log.debug('Set Characteristic On ->', value);
+    if (systemTimezone !== preferredTimezone) {
+      this.platform.log.warn(
+        `WARN: System timezone ${systemTimezone} DOES NOT match with ${this.platform.config.area} area timezone ${preferredTimezone}.`
+        + 'This may result in incorrect time-to-price coding. If possible, please update your system time setting to match timezone of '
+        + 'your specified Nordpool area.',
+      );
+    } else {
+      this.platform.log.debug(
+        `OK: system timezone ${systemTimezone} match ${this.platform.config.area} area timezone ${preferredTimezone}`,
+      );
+    }
   }
 
-  /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory, for example, checking if a Light bulb is on.
-   *
-   * GET requests should return as fast as possbile. A long delay here will result in
-   * HomeKit being unresponsive and a bad user experience in general.
-   *
-   * If your device takes time to respond you should update the status of your device
-   * asynchronously instead using the `updateCharacteristic` method instead.
+  async getPrices() {
+    const todayKey = DateTime.local().setZone(this.areaTimezone).toFormat('yyyy-MM-dd');
+    const tomorrowKey = DateTime.local().plus({ day: 1 }).setZone(this.areaTimezone).toFormat('yyyy-MM-dd');
+    const currentHour = DateTime.local().setZone(this.areaTimezone).hour;
 
-   * @example
-   * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
-   */
-  async getOn(): Promise<CharacteristicValue> {
-    // implement your own code to check if the device is on
-    const isOn = this.exampleStates.On;
+    this.pricing.today = this.pricesCache.get(todayKey)||[];
+    if (this.pricing.today.length === 0 || !this.pricesCache.get(todayKey) || (currentHour >= 18 && !this.pricesCache.get(tomorrowKey))) {
+      this.eleringEE_getNordpoolData()
+        .then((results) => {
+          if (results) {
+            const todayResults = results.filter(result => result.day === todayKey);
+            const tomorrowResults = results.filter(result => result.day === tomorrowKey);
 
-    this.platform.log.debug('Get Characteristic On ->', isOn);
+            if (todayResults.length===24) {
+              this.pricesCache.set(todayKey, todayResults);
+              this.pricing.today = todayResults;
+              this.platform.log.debug(`OK: successfully pulled Nordpool prices in ${this.platform.config.area} area for TODAY`);
+              this.platform.log.debug(JSON.stringify(todayResults));
+              this.analyze_and_setSensors(currentHour);
+            } else {
+              this.platform.log.warn('WARN: Something is incorrect with API response. Unable to determine TODAYS Nordpool prices.');
+              this.platform.log.warn(`Raw response: ${results}`);
+            }
 
-    // if you need to return an error to show the device as "Not Responding" in the Home app:
-    // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
-
-    return isOn;
+            if ( tomorrowResults.length===24 ) {
+              this.pricesCache.set(tomorrowKey, tomorrowResults);
+              this.platform.log.debug(`OK: successfully pulled Nordpool prices in ${this.platform.config.area} area for TOMORROW`);
+              this.platform.log.debug(JSON.stringify(tomorrowResults));
+            }
+          } else {
+            this.platform.log.warn('WARN: API returned no or abnormal results for todays\'s Nordpool prices data. Will retry in 1 hour');
+          }
+        })
+        .catch((error) => {
+          this.platform.log.error(`ERROR: Failed to get todays's prices, will retry in 1 hour. ${error}`);
+        });
+    } else {
+      this.pricing.today = this.pricesCache.get(todayKey)||[];
+      this.analyze_and_setSensors(currentHour);
+    }
   }
 
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, changing the Brightness
-   */
-  async setBrightness(value: CharacteristicValue) {
-    // implement your own code to set the brightness
-    this.exampleStates.Brightness = value as number;
+  async analyze_and_setSensors (currentHour: number) {
+    // if new day or cheapest hours not calculated yet
+    if (currentHour === 0 || this.pricing.cheapest4Hours.length === 0) {
+      this.getCheapestHoursToday();
+    }
 
-    this.platform.log.debug('Set Characteristic Brightness -> ', value);
+    // current hour price
+    if (this.pricing.today.length === 24) {
+      this.pricing.currently = this.pricing.today[currentHour]['price'];
+      this.platform.log.info(`Current hour: ${currentHour}; Price: ${this.pricing.currently}`);
+    } else {
+      this.platform.log.warn('WARN: Unable to determine current hour Nordpool price because data not available');
+    }
+
+    // set current price level on light sensor
+    if (this.service.currently) {
+      this.service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel).updateValue(this.pricing.currently);
+    }
+
+    // set price levels on relevant occupancy sensors
+    for (const key of Object.keys(this.pricing)) {
+      if (!/^(cheapest|priciest)/.test(key)) {
+        continue;
+      }
+
+      if (!this.service[key] || !Array.isArray(this.pricing[key])) {
+        continue;
+      }
+
+    this.service[key]!.setCharacteristic(
+      this.platform.Characteristic.OccupancyDetected,
+      this.pricing[key].includes(currentHour)
+        ? this.platform.Characteristic.OccupancyDetected.OCCUPANCY_DETECTED
+        : this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED,
+    );
+
+    }
+
+    // toggle hourly ticker in 1s ON OFF
+    if (this.service.hourlyTickerSwitch) {
+      setTimeout(() => {
+      this.service.hourlyTickerSwitch!.setCharacteristic(this.platform.Characteristic.On, true);
+      this.platform.log.debug('Hourly ticker switch ON');
+      setTimeout(() => {
+        this.service.hourlyTickerSwitch!.setCharacteristic(this.platform.Characteristic.On, false);
+        this.platform.log.debug('Hourly ticker switch OFF / toggled');
+      }, 1000);
+      }, 1000);
+    }
   }
+
+  async eleringEE_getNordpoolData() {
+    const area = this.platform.config.area.toLowerCase();
+    if (!['lt', 'lv', 'ee', 'fi'].includes(area)) {
+      this.platform.log.error(`ERROR: Invalid area code '${this.platform.config.area}' provided`);
+      return null;
+    }
+
+    const start = DateTime.utc().startOf('day').minus({hours:4}).toISO();
+    const end = DateTime.utc().plus({days:1}).endOf('day').toISO();
+
+    this.platform.log.debug(start, end);
+
+    const encodedStart = encodeURIComponent(start);
+    const encodedEnd = encodeURIComponent(end);
+
+    try {
+      const url = `https://dashboard.elering.ee/api/nps/price?start=${encodedStart}&end=${encodedEnd}`;
+      const response = await axios.get(url);
+      const convertedData = this.eleringEE_convertDataStructure(response.data.data);
+      return convertedData;
+    } catch (error) {
+      this.platform.log.error(`ERROR retrieving Nordpool data: ${error}`);
+      return null;
+    }
+  }
+
+  eleringEE_convertDataStructure(data: { [x: string]: { timestamp: number; price: number }[] }) {
+    const area = this.platform.config.area.toLowerCase();
+
+    return data[area].map((item: { timestamp: number; price: number }) => {
+      // convert the timestamp to ISO string, add the '+02:00' timezone offset
+      const date = DateTime.fromISO(new Date(item.timestamp * 1000).toISOString()).setZone(this.areaTimezone);
+
+      // divide by 10 to convert price to cents per kWh
+      if (item.price < 0) {
+        item.price = 0;
+      } else {
+        item.price = parseFloat((item.price / 10).toFixed(1));
+      }
+
+      return {
+        day: date.toFormat('yyyy-MM-dd'),
+        hour: parseInt(date.toFormat('HH')),
+        price: item.price,
+      };
+    });
+  }
+
+  getCheapestHoursToday() {
+    if (this.pricing.today.length !== 24) {
+      this.platform.log.warn(
+        'WARN: Cannot determine cheapest hours of the day because Nordpool dataset is not available '
+        + `or has abnormal amount of elements: ${this.pricing.today.length} (must be 24)`,
+      );
+      return;
+    }
+
+    const sortedPrices = [...this.pricing.today].sort((a, b) => a.price - b.price);
+
+    // make sure these arrays are empty for new day re-calculation
+    for (const key of Object.keys(this.pricing)) {
+      if (!/^(cheapest|priciest)/.test(key)) {
+        continue;
+      }
+      this.pricing[key] = [];
+    }
+
+    this.pricing.today
+      .map((price, idx) => ({ value: price.price, hour: idx }))
+      .forEach(({ value, hour }) => {
+        if (value <= sortedPrices[0].price) {
+          this.pricing.cheapestHour.push(hour);
+        }
+        if (value <= sortedPrices[3].price) {
+          this.pricing.cheapest4Hours.push(hour);
+        }
+        if (value <= sortedPrices[4].price) {
+          this.pricing.cheapest5Hours.push(hour);
+        }
+        if (value <= sortedPrices[5].price) {
+          this.pricing.cheapest6Hours.push(hour);
+        }
+        if (value <= sortedPrices[6].price) {
+          this.pricing.cheapest7Hours.push(hour);
+        }
+        if (value <= sortedPrices[7].price) {
+          this.pricing.cheapest8Hours.push(hour);
+        }
+        if (value >= sortedPrices[23].price) {
+          this.pricing.priciestHour.push(hour);
+        }
+      });
+
+    this.platform.log.info(`Cheapest hour(s): ${this.pricing.cheapestHour.join(', ')}`);
+    this.platform.log.info(`4 cheapest hours: ${this.pricing.cheapest4Hours.join(', ')}`);
+    this.platform.log.info(`5 cheapest hours: ${this.pricing.cheapest5Hours.join(', ')}`);
+    this.platform.log.info(`6 cheapest hours: ${this.pricing.cheapest6Hours.join(', ')}`);
+    this.platform.log.info(`7 cheapest hours: ${this.pricing.cheapest7Hours.join(', ')}`);
+    this.platform.log.info(`8 cheapest hours: ${this.pricing.cheapest8Hours.join(', ')}`);
+    this.platform.log.info(`Most expensive hour(s): ${this.pricing.priciestHour.join(', ')}`);
+  }
+
+
 
 }
