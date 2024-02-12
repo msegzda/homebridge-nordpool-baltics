@@ -4,7 +4,6 @@ import { schedule } from 'node-cron';
 import { DateTime } from 'luxon';
 import NodeCache from 'node-cache';
 import axios from 'axios';
-import sqlite3 from 'sqlite3';
 
 interface SensorType { [key: string]: Service | null }
 interface PriceData {
@@ -14,14 +13,6 @@ interface PriceData {
   }
 
 export class NordpoolPlatformAccessory {
-
-  // for multi-days moving average calculations
-  // stores not more than 2 weeks worth of prices data
-  private db = new sqlite3.Database('./nordpool.db', sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
-    if (err) {
-      this.platform.log.error('Create/connect database error: ' + err.message);
-    }
-  });
 
   private areaTimezone = 'Europe/Vilnius'; // same timezone applies to Nordpool zones LT, LV, EE, FI
 
@@ -81,10 +72,6 @@ export class NordpoolPlatformAccessory {
 
     this.checkSystemTimezone();
 
-    this.pricesDb_init().then(()=>{
-      this.pricesDb_delOld();
-    });
-
     this.getPrices();
 
     schedule('0 * * * *', () => {
@@ -125,7 +112,6 @@ export class NordpoolPlatformAccessory {
 
             if (todayResults.length===24) {
               this.pricesCache.set(todayKey, todayResults);
-              this.pricesDb_saveNew(todayResults);
               this.pricing.today = todayResults;
               this.platform.log.debug(`OK: successfully pulled Nordpool prices in ${this.platform.config.area} area for TODAY`);
               this.platform.log.debug(JSON.stringify(todayResults));
@@ -137,7 +123,6 @@ export class NordpoolPlatformAccessory {
 
             if ( tomorrowResults.length===24 ) {
               this.pricesCache.set(tomorrowKey, tomorrowResults);
-              this.pricesDb_saveNew(tomorrowResults);
               this.platform.log.debug(`OK: successfully pulled Nordpool prices in ${this.platform.config.area} area for TOMORROW`);
               this.platform.log.debug(JSON.stringify(tomorrowResults));
             }
@@ -312,37 +297,4 @@ export class NordpoolPlatformAccessory {
     }`);
     this.platform.log.info(`Median price today: ${this.pricing.median} cents`);
   }
-
-  async pricesDb_init() {
-    try {
-      this.db.run(`CREATE TABLE IF NOT EXISTS prices (
-        day DATE,
-        hour INTEGER,
-        price REAL,
-        PRIMARY KEY (day, hour)
-      );`);
-    } catch (err) {
-      this.platform.log.warn(`pricesDb_init: ${String(err)}`);
-    }
-  }
-
-  async pricesDb_delOld() {
-    try {
-      this.db.run('DELETE FROM prices WHERE julianday(\'now\') - julianday(day) > 14');
-    } catch (err) {
-      this.platform.log.warn(`pricesDb_delOld: ${String(err)}`);
-    }
-  }
-
-  async pricesDb_saveNew(data) {
-    try {
-      data.forEach((item) => {
-        this.db.run('INSERT OR REPLACE INTO prices (day, hour, price) VALUES (?, ?, ?)',
-          [item.day, item.hour, item.price]);
-      });
-    } catch (err) {
-      this.platform.log.warn(`pricesDb_saveNew: ${String(err)}`);
-    }
-  }
-
 }

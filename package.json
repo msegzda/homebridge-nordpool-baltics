@@ -1,7 +1,7 @@
 {
     "displayName": "Homebridge Nordpool LT, LV, EE, FI",
     "name": "homebridge-nordpool-baltics",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "description": "Plugin exposes dummy switch, light and presence sensors for Homekit automations by electricity price. It supports the following Nordpool zones: Lithuania, Latvia, Estonia and Finland.",
     "homepage": "https://github.com/msegzda/homebridge-nordpool-baltics",
     "author": {
@@ -43,7 +43,6 @@
         "@types/luxon": "^3.4.2",
         "@types/node": "^18.16.20",
         "@types/node-cron": "^3.0.11",
-        "@types/sqlite3": "^3.1.11",
         "@typescript-eslint/eslint-plugin": "^5.62.0",
         "@typescript-eslint/parser": "^5.62.0",
         "eslint": "^8.45.0",
@@ -58,7 +57,6 @@
         "axios": "^1.6.7",
         "luxon": "^3.4.4",
         "node-cache": "^5.1.2",
-        "node-cron": "^3.0.3",
-        "sqlite3": "^5.1.7"
+        "node-cron": "^3.0.3"
     }
 }
