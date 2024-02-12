@@ -1,0 +1,14 @@
+name: AutoTag
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: butlerlogic/action-autotag@stable
+      env:
+        GITHUB_TOKEN: "${{secrets.AUTOTAG_TOKEN}}"
+      with:
+        tag_prefix: "v"

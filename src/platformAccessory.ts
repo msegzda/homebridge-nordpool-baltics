@@ -4,6 +4,7 @@ import { schedule } from 'node-cron';
 import { DateTime } from 'luxon';
 import NodeCache from 'node-cache';
 import axios from 'axios';
+import sqlite3 from 'sqlite3';
 
 interface SensorType { [key: string]: Service | null }
 interface PriceData {
@@ -13,6 +14,14 @@ interface PriceData {
   }
 
 export class NordpoolPlatformAccessory {
+
+  // for multi-days moving average calculations
+  // stores not more than 2 weeks worth of prices data
+  private db = new sqlite3.Database('./nordpool.db', sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+    if (err) {
+      this.platform.log.error('Create/connect database error: ' + err.message);
+    }
+  });
 
   private areaTimezone = 'Europe/Vilnius'; // same timezone applies to Nordpool zones LT, LV, EE, FI
 
@@ -26,6 +35,8 @@ export class NordpoolPlatformAccessory {
     cheapest7Hours: [] as Array<number>, // can be more than 7
     cheapest8Hours: [] as Array<number>, // can be more than 8
     priciestHour: [] as Array<number>, // can be more than one
+    pricierThanMedian: [] as Array<number>,
+    median: 0 as number,
   };
 
   private service: SensorType = {
@@ -46,19 +57,19 @@ export class NordpoolPlatformAccessory {
     private readonly platform: NordpoolPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
-    // set accessory information
+
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Mantas Segzda')
       .setCharacteristic(this.platform.Characteristic.Model, 'Electricity price sensors')
       .setCharacteristic(this.platform.Characteristic.SerialNumber, 'UN783GU921Y0');
 
-    // hourly ticker
-    this.service.hourlyTickerSwitch = this.accessory.getService('Nordpool_hourlyTickerSwitch') || this.accessory.addService(
-      this.platform.Service.Switch, 'Nordpool_hourlyTickerSwitch', 'hourlyTickerSwitch');
-
     // init light sensor for current price
     this.service.currently = this.accessory.getService('Nordpool_currentPrice') || this.accessory.addService(
       this.platform.Service.LightSensor, 'Nordpool_currentPrice', 'currentPrice');
+
+    // hourly ticker
+    this.service.hourlyTickerSwitch = this.accessory.getService('Nordpool_hourlyTickerSwitch') || this.accessory.addService(
+      this.platform.Service.Switch, 'Nordpool_hourlyTickerSwitch', 'hourlyTickerSwitch');
 
     // init all dummy occupancy sensors for price levels
     for (const key of Object.keys(this.service)) {
@@ -69,6 +80,11 @@ export class NordpoolPlatformAccessory {
     }
 
     this.checkSystemTimezone();
+
+    this.pricesDb_init().then(()=>{
+      this.pricesDb_delOld();
+    });
+
     this.getPrices();
 
     schedule('0 * * * *', () => {
@@ -109,10 +125,11 @@ export class NordpoolPlatformAccessory {
 
             if (todayResults.length===24) {
               this.pricesCache.set(todayKey, todayResults);
+              this.pricesDb_saveNew(todayResults);
               this.pricing.today = todayResults;
               this.platform.log.debug(`OK: successfully pulled Nordpool prices in ${this.platform.config.area} area for TODAY`);
               this.platform.log.debug(JSON.stringify(todayResults));
-              this.analyze_and_setSensors(currentHour);
+              this.analyze_and_setServices(currentHour);
             } else {
               this.platform.log.warn('WARN: Something is incorrect with API response. Unable to determine TODAYS Nordpool prices.');
               this.platform.log.warn(`Raw response: ${results}`);
@@ -120,6 +137,7 @@ export class NordpoolPlatformAccessory {
 
             if ( tomorrowResults.length===24 ) {
               this.pricesCache.set(tomorrowKey, tomorrowResults);
+              this.pricesDb_saveNew(tomorrowResults);
               this.platform.log.debug(`OK: successfully pulled Nordpool prices in ${this.platform.config.area} area for TOMORROW`);
               this.platform.log.debug(JSON.stringify(tomorrowResults));
             }
@@ -132,11 +150,11 @@ export class NordpoolPlatformAccessory {
         });
     } else {
       this.pricing.today = this.pricesCache.get(todayKey)||[];
-      this.analyze_and_setSensors(currentHour);
+      this.analyze_and_setServices(currentHour);
     }
   }
 
-  async analyze_and_setSensors (currentHour: number) {
+  async analyze_and_setServices (currentHour: number) {
     // if new day or cheapest hours not calculated yet
     if (currentHour === 0 || this.pricing.cheapest4Hours.length === 0) {
       this.getCheapestHoursToday();
@@ -178,10 +196,8 @@ export class NordpoolPlatformAccessory {
     if (this.service.hourlyTickerSwitch) {
       setTimeout(() => {
       this.service.hourlyTickerSwitch!.setCharacteristic(this.platform.Characteristic.On, true);
-      this.platform.log.debug('Hourly ticker switch ON');
       setTimeout(() => {
         this.service.hourlyTickerSwitch!.setCharacteristic(this.platform.Characteristic.On, false);
-        this.platform.log.debug('Hourly ticker switch OFF / toggled');
       }, 1000);
       }, 1000);
     }
@@ -196,8 +212,6 @@ export class NordpoolPlatformAccessory {
 
     const start = DateTime.utc().startOf('day').minus({hours:4}).toISO();
     const end = DateTime.utc().plus({days:1}).endOf('day').toISO();
-
-    this.platform.log.debug(start, end);
 
     const encodedStart = encodeURIComponent(start);
     const encodedEnd = encodeURIComponent(end);
@@ -246,13 +260,16 @@ export class NordpoolPlatformAccessory {
 
     const sortedPrices = [...this.pricing.today].sort((a, b) => a.price - b.price);
 
-    // make sure these arrays are empty for new day re-calculation
+    // make sure these arrays are empty on each (new day) re-calculation
     for (const key of Object.keys(this.pricing)) {
       if (!/^(cheapest|priciest)/.test(key)) {
         continue;
       }
       this.pricing[key] = [];
     }
+
+    this.pricing.median = (sortedPrices[Math.floor(sortedPrices.length / 2) - 1].price +
+        sortedPrices[Math.ceil(sortedPrices.length / 2)].price) / 2;
 
     this.pricing.today
       .map((price, idx) => ({ value: price.price, hour: idx }))
@@ -278,6 +295,9 @@ export class NordpoolPlatformAccessory {
         if (value >= sortedPrices[23].price) {
           this.pricing.priciestHour.push(hour);
         }
+        if (value >= this.pricing.median * 1.5) {
+          this.pricing.pricierThanMedian.push(hour);
+        }
       });
 
     this.platform.log.info(`Cheapest hour(s): ${this.pricing.cheapestHour.join(', ')}`);
@@ -287,8 +307,42 @@ export class NordpoolPlatformAccessory {
     this.platform.log.info(`7 cheapest hours: ${this.pricing.cheapest7Hours.join(', ')}`);
     this.platform.log.info(`8 cheapest hours: ${this.pricing.cheapest8Hours.join(', ')}`);
     this.platform.log.info(`Most expensive hour(s): ${this.pricing.priciestHour.join(', ')}`);
+    this.platform.log.info(`Hour(s) exceeding 150% of the median: ${
+      this.pricing.pricierThanMedian.length > 0 ? this.pricing.pricierThanMedian.join(', ') : 'N/A'
+    }`);
+    this.platform.log.info(`Median price today: ${this.pricing.median} cents`);
   }
 
+  async pricesDb_init() {
+    try {
+      this.db.run(`CREATE TABLE IF NOT EXISTS prices (
+        day DATE,
+        hour INTEGER,
+        price REAL,
+        PRIMARY KEY (day, hour)
+      );`);
+    } catch (err) {
+      this.platform.log.warn(`pricesDb_init: ${String(err)}`);
+    }
+  }
 
+  async pricesDb_delOld() {
+    try {
+      this.db.run('DELETE FROM prices WHERE julianday(\'now\') - julianday(day) > 14');
+    } catch (err) {
+      this.platform.log.warn(`pricesDb_delOld: ${String(err)}`);
+    }
+  }
+
+  async pricesDb_saveNew(data) {
+    try {
+      data.forEach((item) => {
+        this.db.run('INSERT OR REPLACE INTO prices (day, hour, price) VALUES (?, ?, ?)',
+          [item.day, item.hour, item.price]);
+      });
+    } catch (err) {
+      this.platform.log.warn(`pricesDb_saveNew: ${String(err)}`);
+    }
+  }
 
 }
