@@ -8,7 +8,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: butlerlogic/action-autotag@stable
+      with:
+        node-version: 20
+        tag_prefix: "v"
       env:
         GITHUB_TOKEN: "${{secrets.AUTOTAG_TOKEN}}"
-      with:
-        tag_prefix: "v"
