@@ -15,6 +15,7 @@ interface PriceData {
 export class NordpoolPlatformAccessory {
 
   private areaTimezone = 'Europe/Vilnius'; // same timezone applies to Nordpool zones LT, LV, EE, FI
+  private decimalPrecision = this.platform.config.decimalPrecision || 0;
 
   private pricing = {
     today: [] as Array<PriceData>, // all prices of today
@@ -22,6 +23,7 @@ export class NordpoolPlatformAccessory {
     cheapestHour: [] as Array<number>, // can be more than 1
     cheapest4Hours: [] as Array<number>, // can be more than 4
     cheapest5Hours: [] as Array<number>, // can be more than 5
+    cheapest5HoursConsec: [] as Array<number>,
     cheapest6Hours: [] as Array<number>, // can be more than 6
     cheapest7Hours: [] as Array<number>, // can be more than 7
     cheapest8Hours: [] as Array<number>, // can be more than 8
@@ -35,6 +37,7 @@ export class NordpoolPlatformAccessory {
     cheapestHour: null,
     cheapest4Hours: null,
     cheapest5Hours: null,
+    cheapest5HoursConsec: null,
     cheapest6Hours: null,
     cheapest7Hours: null,
     cheapest8Hours: null,
@@ -223,7 +226,7 @@ export class NordpoolPlatformAccessory {
       if (item.price < 0) {
         item.price = 0;
       } else {
-        item.price = parseFloat((item.price / 10).toFixed(1));
+        item.price = parseFloat((item.price / 10).toFixed(this.decimalPrecision));
       }
 
       return {
@@ -253,8 +256,12 @@ export class NordpoolPlatformAccessory {
       this.pricing[key] = [];
     }
 
-    this.pricing.median = (sortedPrices[Math.floor(sortedPrices.length / 2) - 1].price +
-        sortedPrices[Math.ceil(sortedPrices.length / 2)].price) / 2;
+    this.pricing.median = parseFloat(
+      ((sortedPrices[Math.floor(sortedPrices.length / 2) - 1].price +
+          sortedPrices[Math.ceil(sortedPrices.length / 2)].price) / 2
+      ).toFixed(this.decimalPrecision),
+    );
+
 
     this.pricing.today
       .map((price, idx) => ({ value: price.price, hour: idx }))
@@ -280,21 +287,47 @@ export class NordpoolPlatformAccessory {
         if (value >= sortedPrices[23].price) {
           this.pricing.priciestHour.push(hour);
         }
-        if (value >= this.pricing.median * 1.5) {
+        if (value >= this.pricing.median * 2) {
           this.pricing.pricierThanMedian.push(hour);
         }
       });
 
+    this.pricing.cheapest5HoursConsec = this.getCheapestConsecutiveHours(5);
     this.platform.log.info(`Cheapest hour(s): ${this.pricing.cheapestHour.join(', ')}`);
     this.platform.log.info(`4 cheapest hours: ${this.pricing.cheapest4Hours.join(', ')}`);
-    this.platform.log.info(`5 cheapest hours: ${this.pricing.cheapest5Hours.join(', ')}`);
+    this.platform.log.info(`5 cheapest hours₁: ${this.pricing.cheapest5Hours.join(', ')}`);
+    this.platform.log.info(`5 cheapest hours₂: ${this.pricing.cheapest5HoursConsec.join(', ')} (consecutive)`);
     this.platform.log.info(`6 cheapest hours: ${this.pricing.cheapest6Hours.join(', ')}`);
     this.platform.log.info(`7 cheapest hours: ${this.pricing.cheapest7Hours.join(', ')}`);
     this.platform.log.info(`8 cheapest hours: ${this.pricing.cheapest8Hours.join(', ')}`);
     this.platform.log.info(`Most expensive hour(s): ${this.pricing.priciestHour.join(', ')}`);
-    this.platform.log.info(`Hour(s) exceeding 150% of the median: ${
+    this.platform.log.info(`PREVIEW: Hour(s) exceeding 200% of the median: ${
       this.pricing.pricierThanMedian.length > 0 ? this.pricing.pricierThanMedian.join(', ') : 'N/A'
     }`);
-    this.platform.log.info(`Median price today: ${this.pricing.median} cents`);
+    this.platform.log.info(`PREVIEW: Median price today: ${this.pricing.median} cents`);
+
+
   }
+
+  getCheapestConsecutiveHours(numHours: number): number[] {
+    interface HourSequence {
+        startHour: number;
+        total: number;
+    }
+    const pricing = this.pricing.today;
+    const hourSequences: HourSequence[] = [];
+
+    for(let i = 0; i <= pricing.length - numHours; i++) {
+      const totalSum = pricing.slice(i, i + numHours).reduce((total, priceObj) => total + priceObj.price, 0);
+      hourSequences.push({ startHour: i, total: totalSum });
+    }
+
+    const cheapestHours = hourSequences.sort((a, b) => a.total - b.total)[0];
+    const cheapestHoursList = Array.from({length: numHours}, (_, i) => cheapestHours.startHour + i);
+
+    return cheapestHoursList;
+  }
+
+
+
 }

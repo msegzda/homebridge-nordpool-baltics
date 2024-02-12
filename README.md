@@ -16,6 +16,8 @@ The plugin exposes a variety of accessories that allow for versatile HomeKit aut
 
 1. **Nordpool_cheapest4Hours** to **Nordpool_cheapest8Hours**: A series of Motion Sensors which trigger a 'motion detected' state when the current hour's electricity price ranks among the cheapest of the day. The count can exceed the specified number in the event of repeated same-price occurrences during the day;
 
+1. **Nordpool_cheapest5HoursConsec**: This Motion Sensor triggers during the 5 consecutive lowest-priced electricity hours of the day, ensuring energy-intensive appliances operate uninterrupted for a stretch of 5 hours at the most cost-effective rates.
+
 1. **Nordpool_priciestHour**: A Motion Sensor which triggers 'motion detected' when the current hour's electricity price is the most expensive of the day. More than one hour may qualify if highest price repeats;
 
 ## Important Remarks ##

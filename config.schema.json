@@ -6,7 +6,7 @@
         "type": "object",
         "properties": {
             "area": {
-                "title": "Nordpool market area:",
+                "title": "Nordpool Market Area",
                 "type": "string",
                 "required": true,
                 "default": "LT",
@@ -26,6 +26,27 @@
                     {
                         "title": "Finland",
                         "enum": ["Fi"]
+                    }
+                ]
+            },
+            "decimalPrecision": {
+                "title": "Price Decimal Precision",
+                "description": "This parameter is used for hourly price and median calculations.",
+                "type": "integer",
+                "required": false,
+                "default": 0,
+                "oneOf": [
+                    {
+                        "title": "0 Decimal (Default) - i.e. 4",
+                        "enum": [0]
+                    },
+                    {
+                        "title": "1 Decimal - i.e. 4.6",
+                        "enum": [1]
+                    },
+                    {
+                        "title": "2 Decimal - i.e. 4.68",
+                        "enum": [2]
                     }
                 ]
             }
