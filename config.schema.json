@@ -49,6 +49,15 @@
                         "enum": [2]
                     }
                 ]
+            },
+            "excessivePriceMargin": {
+                "title": "Excessive Price Margin Above Median",
+                "description": "Percentage value used as margin to calculate highest price(s) of the day. Default 200 (percent)",
+                "required": false,
+                "default": 200,
+                "type": "integer",
+                "minimum": 50,
+                "maximum": 400
             }
         }
     }

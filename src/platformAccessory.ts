@@ -14,8 +14,9 @@ interface PriceData {
 
 export class NordpoolPlatformAccessory {
 
-  private areaTimezone = 'Europe/Vilnius'; // same timezone applies to Nordpool zones LT, LV, EE, FI
+  private areaTimezone = 'Europe/Vilnius'; // same timezone applies to all Nordpool zones: LT, LV, EE, FI
   private decimalPrecision = this.platform.config.decimalPrecision || 0;
+  private excessivePriceMargin = this.platform.config.excessivePriceMargin || 200;
 
   private pricing = {
     today: [] as Array<PriceData>, // all prices of today
@@ -28,7 +29,6 @@ export class NordpoolPlatformAccessory {
     cheapest7Hours: [] as Array<number>, // can be more than 7
     cheapest8Hours: [] as Array<number>, // can be more than 8
     priciestHour: [] as Array<number>, // can be more than one
-    pricierThanMedian: [] as Array<number>,
     median: 0 as number,
   };
 
@@ -284,15 +284,13 @@ export class NordpoolPlatformAccessory {
         if (value <= sortedPrices[7].price) {
           this.pricing.cheapest8Hours.push(hour);
         }
-        if (value >= sortedPrices[23].price) {
+        if (value >= sortedPrices[23].price || value >= this.pricing.median * this.excessivePriceMargin/100 ) {
           this.pricing.priciestHour.push(hour);
-        }
-        if (value >= this.pricing.median * 2) {
-          this.pricing.pricierThanMedian.push(hour);
         }
       });
 
     this.pricing.cheapest5HoursConsec = this.getCheapestConsecutiveHours(5);
+
     this.platform.log.info(`Cheapest hour(s): ${this.pricing.cheapestHour.join(', ')}`);
     this.platform.log.info(`4 cheapest hours: ${this.pricing.cheapest4Hours.join(', ')}`);
     this.platform.log.info(`5 cheapest hours₁: ${this.pricing.cheapest5Hours.join(', ')}`);
@@ -300,13 +298,9 @@ export class NordpoolPlatformAccessory {
     this.platform.log.info(`6 cheapest hours: ${this.pricing.cheapest6Hours.join(', ')}`);
     this.platform.log.info(`7 cheapest hours: ${this.pricing.cheapest7Hours.join(', ')}`);
     this.platform.log.info(`8 cheapest hours: ${this.pricing.cheapest8Hours.join(', ')}`);
+    this.platform.log.debug(`Configured excessive price above median margin: ${this.excessivePriceMargin}`);
     this.platform.log.info(`Most expensive hour(s): ${this.pricing.priciestHour.join(', ')}`);
-    this.platform.log.info(`PREVIEW: Hour(s) exceeding 200% of the median: ${
-      this.pricing.pricierThanMedian.length > 0 ? this.pricing.pricierThanMedian.join(', ') : 'N/A'
-    }`);
-    this.platform.log.info(`PREVIEW: Median price today: ${this.pricing.median} cents`);
-
-
+    this.platform.log.info(`Median price today: ${this.pricing.median} cents`);
   }
 
   getCheapestConsecutiveHours(numHours: number): number[] {
