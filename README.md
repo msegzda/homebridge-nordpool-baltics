@@ -1,12 +1,26 @@
-# General Information #
+# homebridge-nordpool-baltics #
 
-`homebridge-nordpool-baltics` plugin allows to automate electricity-intensive appliances and devices such as boiler, heating system, car charging, or house power-wall according to Nordpool's price levels.
+![NPM Version](https://img.shields.io/npm/v/homebridge-nordpool-baltics)
+![NPM Downloads](https://img.shields.io/npm/dw/homebridge-nordpool-baltics)
+![NPM License](https://img.shields.io/npm/l/homebridge-nordpool-baltics)
 
-It supports the following Nordpool areas only: Lithuania, Latvia, Estonia, and Finland.
+This plugin allows you to automate electricity-intensive appliances and devices based on Nordpool's price levels. These can include:
+
+- Water heaters (a.k.a boilers)
+- Heating systems (such as radiators)
+- Car charging systems
+- Power-walls (to balance electricity costs)
+
+Currently, this plugin supports the following Nordpool areas:
+
+- Lithuania
+- Latvia
+- Estonia
+- Finland
 
 ## Exposed Accessories ##
 
-It exposes a few 'fake' accessories that facilitates versatile HomeKit automation based on Nordpool prices. These include:
+It exposes a few 'virtual' accessories that facilitate versatile HomeKit automation based on Nordpool prices. These include:
 
 1. `Nordpool_hourlyTickerSwitch`: A switch that cycles ON and OFF every hour. Use it in 'An Accessory is Controlled' event on HomeKit automation. Then check for desired price/levels further on automation logic;
 
@@ -28,11 +42,11 @@ Additionally, please verify that your system's clock is regularly synchronized t
 
 ## HomeKit Automation Examples ##
 
-Here are a few automation examples, based on real-life use cases. Mind accessories of `homebridge-nordpool-baltics` plugin renamed for readability.
+Here are a few automation examples, based on real-life use cases. Please note, the names of the accessories from the `homebridge-nordpool-baltics` plugin have been renamed in these examples to improve readability.
 
 | Water heater | Floor heater | Car charging |
 | --------- | --------- | --------- |
 | ![Boiler1](images/boiler1.png) | ![Floor1](images/floor1.png)  | ![Car1](images/car1.png)   |
 | ![Boiler2](images/boiler2.png)  | ![Floor2](images/floor2.png)  | ![Car2](images/car2.png)  |
 
-Do you have a fantastic use case with accessories from `homebridge-nordpool-baltics` plugin? Share them using [this form](https://github.com/msegzda/homebridge-nordpool-baltics/issues/new).
+Do you have a fantastic use case with accessories from the `homebridge-nordpool-baltics` plugin? Share it using [this form](https://github.com/msegzda/homebridge-nordpool-baltics/issues/new).
