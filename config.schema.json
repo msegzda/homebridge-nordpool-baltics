@@ -5,6 +5,14 @@
     "schema": {
         "type": "object",
         "properties": {
+            "name": {
+                "title": "Bridge name",
+                "type": "string",
+                "required": true,
+                "placeholder": "Nordpool",
+                "description": "You'll see this name when you add the bridge in your Home app and in Homebridge logs.",
+                "default": "Nordpool"
+            },
             "area": {
                 "title": "Nordpool Market Area",
                 "type": "string",

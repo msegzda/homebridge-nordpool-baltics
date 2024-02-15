@@ -8,7 +8,7 @@ This plugin allows you to automate electricity-intensive appliances and devices 
 
 - Water heaters (a.k.a boilers)
 - Heating systems (such as radiators)
-- Car charging systems
+- Car charging
 - Power-walls (to balance electricity costs)
 
 Currently, this plugin supports the following Nordpool areas:
