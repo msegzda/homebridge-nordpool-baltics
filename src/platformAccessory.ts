@@ -2,16 +2,12 @@ import { PlatformAccessory } from 'homebridge';
 import { NordpoolPlatform } from './platform';
 
 import {
-  defaultPricing, defaultService, defaultAreaTimezone, PLATFORM_MANUFACTURER,
+  defaultPricing, defaultService, defaultAreaTimezone, PLATFORM_MANUFACTURER, defaultPricesCache,
+  fnc_todayKey, fnc_tomorrowKey, fnc_currentHour, PriceData,
 } from './settings';
-
-import {
-  getCheapestConsecutiveHours,
-} from './functions';
 
 import { schedule } from 'node-cron';
 import { DateTime } from 'luxon';
-import NodeCache from 'node-cache';
 import axios from 'axios';
 
 export class NordpoolPlatformAccessory {
@@ -22,8 +18,7 @@ export class NordpoolPlatformAccessory {
   private pricing = defaultPricing;
   private service = defaultService;
   private areaTimezone = defaultAreaTimezone;
-
-  private pricesCache = new NodeCache({ stdTTL: 86400 });
+  private pricesCache = defaultPricesCache;
 
   constructor(
     private readonly platform: NordpoolPlatform,
@@ -92,9 +87,9 @@ export class NordpoolPlatformAccessory {
   }
 
   async getPrices() {
-    const todayKey = DateTime.local().setZone(this.areaTimezone).toFormat('yyyy-MM-dd');
-    const tomorrowKey = DateTime.local().plus({ day: 1 }).setZone(this.areaTimezone).toFormat('yyyy-MM-dd');
-    const currentHour = DateTime.local().setZone(this.areaTimezone).hour;
+    const todayKey = fnc_todayKey();
+    const tomorrowKey = fnc_tomorrowKey();
+    const currentHour = fnc_currentHour();
 
     this.pricing.today = this.pricesCache.get(todayKey)||[];
     if (this.pricing.today.length === 0 || !this.pricesCache.get(todayKey) || (currentHour >= 18 && !this.pricesCache.get(tomorrowKey))) {
@@ -119,6 +114,7 @@ export class NordpoolPlatformAccessory {
               this.pricesCache.set(tomorrowKey, tomorrowResults);
               this.platform.log.debug(`OK: pulled Nordpool prices in ${this.platform.config.area} area for TOMORROW (${tomorrowKey})`);
               this.platform.log.debug(JSON.stringify(tomorrowResults.map(({ hour, price }) => ({ hour, price }))));
+              this.getCheapestHoursIn2days();
             }
           } else {
             this.platform.log.warn('WARN: API returned no or abnormal results for todays\'s Nordpool prices data. Will retry in 1 hour');
@@ -134,9 +130,14 @@ export class NordpoolPlatformAccessory {
   }
 
   async analyze_and_setServices (currentHour: number) {
+
     // if new day or cheapest hours not calculated yet
     if (currentHour === 0 || this.pricing.cheapest4Hours.length === 0) {
       this.getCheapestHoursToday();
+    }
+
+    if (currentHour === 7 || this.pricing.cheapest5HoursConsec.length===0 ) {
+      this.getCheapestConsecutiveHours(5, this.pricing.today);
     }
 
     // current hour price
@@ -277,18 +278,67 @@ export class NordpoolPlatformAccessory {
         }
       });
 
-    this.pricing.cheapest5HoursConsec = getCheapestConsecutiveHours(5, this.pricing.today);
-
     this.platform.log.info(`Cheapest hour(s): ${this.pricing.cheapestHour.join(', ')}`);
     this.platform.log.info(`4 cheapest hours: ${this.pricing.cheapest4Hours.join(', ')}`);
     this.platform.log.info(`5 cheapest hours₁: ${this.pricing.cheapest5Hours.join(', ')}`);
-    this.platform.log.info(`5 cheapest hours₂: ${this.pricing.cheapest5HoursConsec.join(', ')} (consecutive)`);
     this.platform.log.info(`6 cheapest hours: ${this.pricing.cheapest6Hours.join(', ')}`);
     this.platform.log.info(`7 cheapest hours: ${this.pricing.cheapest7Hours.join(', ')}`);
     this.platform.log.info(`8 cheapest hours: ${this.pricing.cheapest8Hours.join(', ')}`);
     this.platform.log.debug(`Configured excessive price above median margin: ${this.excessivePriceMargin}`);
     this.platform.log.info(`Most expensive hour(s): ${this.pricing.priciestHour.join(', ')}`);
     this.platform.log.info(`Median price today: ${this.pricing.median} cents`);
+  }
+
+  async getCheapestConsecutiveHours(numHours: number, pricing) {
+    interface HourSequence {
+        startHour: number;
+        total: number;
+    }
+    const hourSequences: HourSequence[] = [];
+
+    for(let i = 0; i <= pricing.length - numHours; i++) {
+      const totalSum = pricing.slice(i, i + numHours).reduce((total, priceObj) => total + priceObj.price, 0);
+      hourSequences.push({ startHour: i, total: totalSum });
+    }
+
+    const cheapestHours = hourSequences.sort((a, b) => a.total - b.total)[0];
+    const newCheapest5HoursConsec = Array.from({length: numHours}, (_, i) => pricing[cheapestHours.startHour + i].hour);
+
+    if ( this.pricing.cheapest5HoursConsec.length===0 ) {
+      this.pricing.cheapest5HoursConsec = newCheapest5HoursConsec;
+      this.platform.log.info(
+        `Consecutive ${numHours} cheapest hours: ${this.pricing.cheapest5HoursConsec.join(', ')}`,
+      );
+    } else {
+      this.pricing.cheapest5HoursConsec = newCheapest5HoursConsec;
+      this.platform.log.info(
+        `Consecutive ${numHours} cheapest hours: ${this.pricing.cheapest5HoursConsec.join(', ')} (recalculated)`,
+      );
+    }
+  }
+
+  async getCheapestHoursIn2days() {
+    const todayKey = fnc_todayKey();
+    const tomorrowKey = fnc_tomorrowKey();
+
+    let tomorrow = [] as Array<PriceData>; tomorrow = this.pricesCache.get(tomorrowKey)||[];
+    let twoDaysPricing = [] as Array<PriceData>;
+
+    // stop function if not full data or already updated
+    if ( this.pricing.today.length !== 24 || tomorrow.length !== 24 || this.pricesCache.get(`${todayKey}_5consecUpdated`) ) {
+      return;
+    }
+
+    // from 7AM till next day 6AM
+    twoDaysPricing = this.pricing.today.slice(7, 24).concat(tomorrow.slice(0, 7));
+
+    try {
+      await this.getCheapestConsecutiveHours(5, twoDaysPricing);
+      this.pricesCache.set(`${todayKey}_5consecUpdated`, 1);
+    } catch (error) {
+      this.platform.log.error('An error occurred calculating cheapest 5 consecutive hours: ', error);
+    }
+
   }
 
 }
