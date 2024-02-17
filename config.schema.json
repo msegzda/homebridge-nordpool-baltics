@@ -5,8 +5,16 @@
     "schema": {
         "type": "object",
         "properties": {
+            "name": {
+                "title": "Bridge name",
+                "type": "string",
+                "required": true,
+                "placeholder": "Nordpool",
+                "description": "You'll see this name when you add the bridge in your Home app and in Homebridge logs.",
+                "default": "Nordpool"
+            },
             "area": {
-                "title": "Nordpool market area:",
+                "title": "Nordpool Market Area",
                 "type": "string",
                 "required": true,
                 "default": "LT",
@@ -28,6 +36,43 @@
                         "enum": ["Fi"]
                     }
                 ]
+            },
+            "decimalPrecision": {
+                "title": "Price Decimal Precision",
+                "description": "This parameter is used for hourly price and median calculations.",
+                "type": "integer",
+                "required": false,
+                "default": 0,
+                "oneOf": [
+                    {
+                        "title": "0 Decimal (Default) - i.e. 4",
+                        "enum": [0]
+                    },
+                    {
+                        "title": "1 Decimal - i.e. 4.6",
+                        "enum": [1]
+                    },
+                    {
+                        "title": "2 Decimal - i.e. 4.68",
+                        "enum": [2]
+                    }
+                ]
+            },
+            "excessivePriceMargin": {
+                "title": "Excessive Price Margin Above Median",
+                "description": "Percentage value used as margin to calculate highest price(s) of the day. Default 200 (percent)",
+                "required": false,
+                "default": 200,
+                "type": "integer",
+                "minimum": 50,
+                "maximum": 400
+            },
+            "dynamicCheapestConsecutiveHours": {
+                "title": "Dynamic Cheapest Consecutive Hours",
+                "description": "If enabled, 5 cheapest consecutive hours may recalculate using day-ahead pricing. For more details go to <a href='https://github.com/msegzda/homebridge-nordpool-baltics/blob/latest/README.md#cheapest-consecutive-hours-calculation-logic' target='_blank'>plugin README</a>",
+                "required": false,
+                "default": false,
+                "type": "boolean"
             }
         }
     }

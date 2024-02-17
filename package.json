@@ -1,8 +1,8 @@
 {
     "displayName": "Homebridge Nordpool LT, LV, EE, FI",
     "name": "homebridge-nordpool-baltics",
-    "version": "1.0.4",
-    "description": "This plugin will expose light and presence sensors for Nordpool electricity price automations. It supports the following Nordpool zones: Lithuania, Latvia, Estonia and Finland.",
+    "version": "1.0.14",
+    "description": "Plugin exposes virtual accessories (switch, light, presence sensors) and enables HomeKit automation by Nordpool energy market spot price. It supports the following countries: Lithuania, Latvia, Estonia and Finland.",
     "homepage": "https://github.com/msegzda/homebridge-nordpool-baltics",
     "author": {
         "name": "Mantas Segzda",
@@ -11,14 +11,25 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "git@github.com:msegzda/homebridge-nordpool-baltics.git"
+        "url": "git+ssh://git@github.com/msegzda/homebridge-nordpool-baltics.git"
     },
     "bugs": {
         "url": "https://github.com/msegzda/homebridge-nordpool-baltics/issues"
     },
     "keywords": [
         "homebridge-plugin",
-        "nordpool"
+        "nordpool",
+        "lithuania",
+        "latvia",
+        "estonia",
+        "finland",
+        "electricity",
+        "spot",
+        "price",
+        "spot price",
+        "day-ahead",
+        "homekit",
+        "electricity market"
     ],
     "engines": {
         "node": "^18.17.0 || ^20.9.0",
@@ -37,18 +48,18 @@
         "@types/node-cron": "^3.0.11",
         "@typescript-eslint/eslint-plugin": "^5.62.0",
         "@typescript-eslint/parser": "^5.62.0",
-        "axios": "^1.6.7",
         "eslint": "^8.45.0",
         "homebridge": "^1.2.5",
         "lodash": "^4.17.21",
-        "luxon": "^3.4.4",
-        "node-cache": "^5.1.2",
         "nodemon": "^3.0.3",
         "rimraf": "^3.0.2",
         "ts-node": "^10.9.1",
         "typescript": "^4.9.5"
     },
     "dependencies": {
+        "axios": "^1.6.7",
+        "luxon": "^3.4.4",
+        "node-cache": "^5.1.2",
         "node-cron": "^3.0.3"
     }
 }

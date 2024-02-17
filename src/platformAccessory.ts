@@ -1,74 +1,78 @@
-import { Service, PlatformAccessory } from 'homebridge';
+import { PlatformAccessory } from 'homebridge';
 import { NordpoolPlatform } from './platform';
+
+import {
+  defaultPricing, defaultService, defaultAreaTimezone, PLATFORM_MANUFACTURER, defaultPricesCache,
+  fnc_todayKey, fnc_tomorrowKey, fnc_currentHour, PriceData,
+} from './settings';
+
 import { schedule } from 'node-cron';
 import { DateTime } from 'luxon';
-import NodeCache from 'node-cache';
 import axios from 'axios';
-
-interface SensorType { [key: string]: Service | null }
-interface PriceData {
-    day: string;
-    hour: number;
-    price: number;
-  }
 
 export class NordpoolPlatformAccessory {
 
-  private areaTimezone = 'Europe/Vilnius'; // same timezone applies to Nordpool zones LT, LV, EE, FI
+  private decimalPrecision = this.platform.config.decimalPrecision || 0;
+  private excessivePriceMargin = this.platform.config.excessivePriceMargin || 200;
+  private dynamicCheapestConsecutiveHours = this.platform.config.dynamicCheapestConsecutiveHours || false;
 
-  private pricing = {
-    today: [] as Array<PriceData>, // all prices of today
-    currently: 0.0001, // default light sensor value cannot be 0
-    cheapestHour: [] as Array<number>, // can be more than 1
-    cheapest4Hours: [] as Array<number>, // can be more than 4
-    cheapest5Hours: [] as Array<number>, // can be more than 5
-    cheapest6Hours: [] as Array<number>, // can be more than 6
-    cheapest7Hours: [] as Array<number>, // can be more than 7
-    cheapest8Hours: [] as Array<number>, // can be more than 8
-    priciestHour: [] as Array<number>, // can be more than one
-  };
-
-  private service: SensorType = {
-    currently: null,
-    cheapestHour: null,
-    cheapest4Hours: null,
-    cheapest5Hours: null,
-    cheapest6Hours: null,
-    cheapest7Hours: null,
-    cheapest8Hours: null,
-    priciestHour: null,
-    hourlyTickerSwitch: null,
-  };
-
-  private pricesCache = new NodeCache({ stdTTL: 86400 });
+  private pricing = defaultPricing;
+  private service = defaultService;
+  private areaTimezone = defaultAreaTimezone;
+  private pricesCache = defaultPricesCache;
 
   constructor(
     private readonly platform: NordpoolPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
-    // set accessory information
+
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Mantas Segzda')
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, PLATFORM_MANUFACTURER)
       .setCharacteristic(this.platform.Characteristic.Model, 'Electricity price sensors')
       .setCharacteristic(this.platform.Characteristic.SerialNumber, 'UN783GU921Y0');
-
-    // hourly ticker
-    this.service.hourlyTickerSwitch = this.accessory.getService('Nordpool_hourlyTickerSwitch') || this.accessory.addService(
-      this.platform.Service.Switch, 'Nordpool_hourlyTickerSwitch', 'hourlyTickerSwitch');
 
     // init light sensor for current price
     this.service.currently = this.accessory.getService('Nordpool_currentPrice') || this.accessory.addService(
       this.platform.Service.LightSensor, 'Nordpool_currentPrice', 'currentPrice');
 
-    // init all dummy occupancy sensors for price levels
+    // set default price level
+    if (this.service.currently) {
+      this.service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel).updateValue(this.pricing.currently);
+    }
+
+    // hourly ticker
+    this.service.hourlyTickerSwitch = this.accessory.getService('Nordpool_hourlyTickerSwitch') || this.accessory.addService(
+      this.platform.Service.Switch, 'Nordpool_hourlyTickerSwitch', 'hourlyTickerSwitch');
+
+    // turn OFF hourly ticker if its turned on by schedule or manually
+    this.service.hourlyTickerSwitch.getCharacteristic(this.platform.Characteristic.On)
+      .on('set', (value, callback) => {
+        if(value) {
+          // If switch is manually turned on, start a timer to switch it back off after 1 second
+          setTimeout(() => {
+            this.service.hourlyTickerSwitch!.updateCharacteristic(this.platform.Characteristic.On, false);
+            this.platform.log.debug('Hourly ticker switch turned OFF automatically with 1s delay');
+          }, 1000);
+        }
+        callback(null);
+      });
+
+    // init all virtual occupancy sensors for price levels
     for (const key of Object.keys(this.service)) {
       if (/^(cheapest|priciest)/.test(key)) {
-        this.service[key] = this.accessory.getService(`Nordpool_${key}`) || this.accessory.addService(
-          this.platform.Service.OccupancySensor, `Nordpool_${key}`, key);
+        this.service[key] = this.accessory.getService(`Nordpool_${key}`)
+            || this.accessory.addService(this.platform.Service.OccupancySensor, `Nordpool_${key}`, key);
+
+        if ( this.service[key] ) {
+          this.service[key]!
+            .getCharacteristic(this.platform.Characteristic.OccupancyDetected)
+            .setValue(this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED);
+        }
       }
     }
 
     this.checkSystemTimezone();
+
     this.getPrices();
 
     schedule('0 * * * *', () => {
@@ -95,9 +99,9 @@ export class NordpoolPlatformAccessory {
   }
 
   async getPrices() {
-    const todayKey = DateTime.local().setZone(this.areaTimezone).toFormat('yyyy-MM-dd');
-    const tomorrowKey = DateTime.local().plus({ day: 1 }).setZone(this.areaTimezone).toFormat('yyyy-MM-dd');
-    const currentHour = DateTime.local().setZone(this.areaTimezone).hour;
+    const todayKey = fnc_todayKey();
+    const tomorrowKey = fnc_tomorrowKey();
+    const currentHour = fnc_currentHour();
 
     this.pricing.today = this.pricesCache.get(todayKey)||[];
     if (this.pricing.today.length === 0 || !this.pricesCache.get(todayKey) || (currentHour >= 18 && !this.pricesCache.get(tomorrowKey))) {
@@ -110,9 +114,9 @@ export class NordpoolPlatformAccessory {
             if (todayResults.length===24) {
               this.pricesCache.set(todayKey, todayResults);
               this.pricing.today = todayResults;
-              this.platform.log.debug(`OK: successfully pulled Nordpool prices in ${this.platform.config.area} area for TODAY`);
-              this.platform.log.debug(JSON.stringify(todayResults));
-              this.analyze_and_setSensors(currentHour);
+              this.platform.log.debug(`OK: pulled Nordpool prices in ${this.platform.config.area} area for TODAY (${todayKey})`);
+              this.platform.log.debug(JSON.stringify(todayResults.map(({ hour, price }) => ({ hour, price }))));
+              this.analyze_and_setServices(currentHour);
             } else {
               this.platform.log.warn('WARN: Something is incorrect with API response. Unable to determine TODAYS Nordpool prices.');
               this.platform.log.warn(`Raw response: ${results}`);
@@ -120,32 +124,38 @@ export class NordpoolPlatformAccessory {
 
             if ( tomorrowResults.length===24 ) {
               this.pricesCache.set(tomorrowKey, tomorrowResults);
-              this.platform.log.debug(`OK: successfully pulled Nordpool prices in ${this.platform.config.area} area for TOMORROW`);
-              this.platform.log.debug(JSON.stringify(tomorrowResults));
+              this.platform.log.debug(`OK: pulled Nordpool prices in ${this.platform.config.area} area for TOMORROW (${tomorrowKey})`);
+              this.platform.log.debug(JSON.stringify(tomorrowResults.map(({ hour, price }) => ({ hour, price }))));
+              if (this.dynamicCheapestConsecutiveHours) {
+                this.getCheapestHoursIn2days();
+              }
             }
           } else {
             this.platform.log.warn('WARN: API returned no or abnormal results for todays\'s Nordpool prices data. Will retry in 1 hour');
           }
         })
         .catch((error) => {
-          this.platform.log.error(`ERROR: Failed to get todays's prices, will retry in 1 hour. ${error}`);
+          this.platform.log.error(`ERR: Failed to get todays's prices, will retry in 1 hour. ${error}`);
         });
     } else {
       this.pricing.today = this.pricesCache.get(todayKey)||[];
-      this.analyze_and_setSensors(currentHour);
+      this.analyze_and_setServices(currentHour);
     }
   }
 
-  async analyze_and_setSensors (currentHour: number) {
+  async analyze_and_setServices (currentHour: number) {
+
     // if new day or cheapest hours not calculated yet
     if (currentHour === 0 || this.pricing.cheapest4Hours.length === 0) {
       this.getCheapestHoursToday();
     }
 
+    await this.getCheapestConsecutiveHours(5, this.pricing.today);
+
     // current hour price
     if (this.pricing.today.length === 24) {
       this.pricing.currently = this.pricing.today[currentHour]['price'];
-      this.platform.log.info(`Current hour: ${currentHour}; Price: ${this.pricing.currently}`);
+      this.platform.log.info(`Hour: ${currentHour}; Price: ${this.pricing.currently} cents`);
     } else {
       this.platform.log.warn('WARN: Unable to determine current hour Nordpool price because data not available');
     }
@@ -174,15 +184,10 @@ export class NordpoolPlatformAccessory {
 
     }
 
-    // toggle hourly ticker in 1s ON OFF
+    // toggle hourly ticker in 1s ON
     if (this.service.hourlyTickerSwitch) {
       setTimeout(() => {
       this.service.hourlyTickerSwitch!.setCharacteristic(this.platform.Characteristic.On, true);
-      this.platform.log.debug('Hourly ticker switch ON');
-      setTimeout(() => {
-        this.service.hourlyTickerSwitch!.setCharacteristic(this.platform.Characteristic.On, false);
-        this.platform.log.debug('Hourly ticker switch OFF / toggled');
-      }, 1000);
       }, 1000);
     }
   }
@@ -190,14 +195,12 @@ export class NordpoolPlatformAccessory {
   async eleringEE_getNordpoolData() {
     const area = this.platform.config.area.toLowerCase();
     if (!['lt', 'lv', 'ee', 'fi'].includes(area)) {
-      this.platform.log.error(`ERROR: Invalid area code '${this.platform.config.area}' provided`);
+      this.platform.log.error(`ERR: Invalid area code '${this.platform.config.area}' configured`);
       return null;
     }
 
     const start = DateTime.utc().startOf('day').minus({hours:4}).toISO();
     const end = DateTime.utc().plus({days:1}).endOf('day').toISO();
-
-    this.platform.log.debug(start, end);
 
     const encodedStart = encodeURIComponent(start);
     const encodedEnd = encodeURIComponent(end);
@@ -205,12 +208,19 @@ export class NordpoolPlatformAccessory {
     try {
       const url = `https://dashboard.elering.ee/api/nps/price?start=${encodedStart}&end=${encodedEnd}`;
       const response = await axios.get(url);
-      const convertedData = this.eleringEE_convertDataStructure(response.data.data);
-      return convertedData;
+      if (response.status !== 200 ) {
+        this.platform.log.warn(`WARN: Nordpool API provider Elering returned unusual response status ${response.status}`);
+      }
+      if (response.data.data) {
+        const convertedData = this.eleringEE_convertDataStructure(response.data.data);
+        return convertedData;
+      } else {
+        this.platform.log.error(`ERR: Nordpool API provider Elering returned unusual data ${JSON.stringify(response.data)}`);
+      }
     } catch (error) {
-      this.platform.log.error(`ERROR retrieving Nordpool data: ${error}`);
-      return null;
+      this.platform.log.error(`ERR: General Nordpool API provider Elering error: ${error}`);
     }
+    return null;
   }
 
   eleringEE_convertDataStructure(data: { [x: string]: { timestamp: number; price: number }[] }) {
@@ -224,7 +234,7 @@ export class NordpoolPlatformAccessory {
       if (item.price < 0) {
         item.price = 0;
       } else {
-        item.price = parseFloat((item.price / 10).toFixed(1));
+        item.price = parseFloat((item.price / 10).toFixed(this.decimalPrecision));
       }
 
       return {
@@ -246,13 +256,19 @@ export class NordpoolPlatformAccessory {
 
     const sortedPrices = [...this.pricing.today].sort((a, b) => a.price - b.price);
 
-    // make sure these arrays are empty for new day re-calculation
+    // make sure these arrays are empty on each (new day) re-calculation
     for (const key of Object.keys(this.pricing)) {
-      if (!/^(cheapest|priciest)/.test(key)) {
+      if (!/^(cheapest|priciest|cheapest5HoursConsec)/.test(key)) {
         continue;
       }
       this.pricing[key] = [];
     }
+
+    this.pricing.median = parseFloat(
+      ((sortedPrices[Math.floor(sortedPrices.length / 2) - 1].price +
+          sortedPrices[Math.ceil(sortedPrices.length / 2)].price) / 2
+      ).toFixed(this.decimalPrecision),
+    );
 
     this.pricing.today
       .map((price, idx) => ({ value: price.price, hour: idx }))
@@ -275,7 +291,9 @@ export class NordpoolPlatformAccessory {
         if (value <= sortedPrices[7].price) {
           this.pricing.cheapest8Hours.push(hour);
         }
-        if (value >= sortedPrices[23].price) {
+        if ((value >= sortedPrices[23].price || value >= this.pricing.median * this.excessivePriceMargin/100)
+                && !this.pricing.cheapest8Hours.includes(hour)
+        ) {
           this.pricing.priciestHour.push(hour);
         }
       });
@@ -286,9 +304,76 @@ export class NordpoolPlatformAccessory {
     this.platform.log.info(`6 cheapest hours: ${this.pricing.cheapest6Hours.join(', ')}`);
     this.platform.log.info(`7 cheapest hours: ${this.pricing.cheapest7Hours.join(', ')}`);
     this.platform.log.info(`8 cheapest hours: ${this.pricing.cheapest8Hours.join(', ')}`);
+    this.platform.log.debug(`Configured excessive price above median margin: ${this.excessivePriceMargin}`);
     this.platform.log.info(`Most expensive hour(s): ${this.pricing.priciestHour.join(', ')}`);
+    this.platform.log.info(`Median price today: ${this.pricing.median} cents`);
   }
 
+  async getCheapestConsecutiveHours(numHours: number, pricing) {
+    interface HourSequence {
+        startHour: number;
+        total: number;
+    }
+    const hourSequences: HourSequence[] = [];
 
+    for(let i = 0; i <= pricing.length - numHours; i++) {
+      const totalSum = pricing.slice(i, i + numHours).reduce((total, priceObj) => total + priceObj.price, 0);
+      hourSequences.push({ startHour: i, total: totalSum });
+    }
+
+    const cheapestHours = hourSequences.sort((a, b) => a.total - b.total)[0];
+    const newCheapest5HoursConsec = Array.from({length: numHours}, (_, i) => pricing[cheapestHours.startHour + i].hour);
+
+    if ( this.pricing.cheapest5HoursConsec.length===0 ) {
+      this.pricing.cheapest5HoursConsec = newCheapest5HoursConsec;
+      this.platform.log.info(
+        `Consecutive ${numHours} cheapest hours: ${this.pricing.cheapest5HoursConsec.join(', ')}`,
+      );
+    } else {
+      this.pricing.cheapest5HoursConsec = newCheapest5HoursConsec;
+      this.platform.log.info(
+        `Consecutive ${numHours} cheapest hours: ${this.pricing.cheapest5HoursConsec.join(', ')} (recalculated)`,
+      );
+    }
+  }
+
+  async getCheapestHoursIn2days() {
+
+    // make sure its not allowed to execute if not enabled on plugin config
+    if (!this.dynamicCheapestConsecutiveHours){
+      return;
+    }
+
+    const todayKey = fnc_todayKey();
+    const tomorrowKey = fnc_tomorrowKey();
+    const currentHour = fnc_currentHour();
+
+    let tomorrow = [] as Array<PriceData>; tomorrow = this.pricesCache.get(tomorrowKey)||[];
+    let twoDaysPricing = [] as Array<PriceData>;
+
+    // stop function if not full data or already updated
+    if ( this.pricing.today.length !== 24 || tomorrow.length !== 24 || this.pricesCache.get(`${todayKey}_5consecUpdated`) ) {
+      return;
+    }
+
+    const remainingHoursToday = Array.from({length: Math.min(24 - currentHour, 24)}, (_, i) => currentHour + i);
+
+    // Check if any of the remaining hours are within the cheapest consecutive hours
+    if( this.pricing.cheapest5HoursConsec.some(hour => remainingHoursToday.includes(hour)) ) {
+      // from now till next day 6AM
+      twoDaysPricing = this.pricing.today.slice(currentHour, 24).concat(tomorrow.slice(0, 7));
+    } else {
+      // do nothing, will recalculate 0AM anyway
+      return;
+    }
+
+    try {
+      await this.getCheapestConsecutiveHours(5, twoDaysPricing);
+      this.pricesCache.set(`${todayKey}_5consecUpdated`, 1);
+    } catch (error) {
+      this.platform.log.error('An error occurred calculating cheapest 5 consecutive hours: ', error);
+    }
+
+  }
 
 }
