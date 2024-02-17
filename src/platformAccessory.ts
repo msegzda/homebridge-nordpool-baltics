@@ -34,6 +34,11 @@ export class NordpoolPlatformAccessory {
     this.service.currently = this.accessory.getService('Nordpool_currentPrice') || this.accessory.addService(
       this.platform.Service.LightSensor, 'Nordpool_currentPrice', 'currentPrice');
 
+    // set default price level
+    if (this.service.currently) {
+      this.service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel).updateValue(this.pricing.currently);
+    }
+
     // hourly ticker
     this.service.hourlyTickerSwitch = this.accessory.getService('Nordpool_hourlyTickerSwitch') || this.accessory.addService(
       this.platform.Service.Switch, 'Nordpool_hourlyTickerSwitch', 'hourlyTickerSwitch');
@@ -45,7 +50,7 @@ export class NordpoolPlatformAccessory {
           // If switch is manually turned on, start a timer to switch it back off after 1 second
           setTimeout(() => {
             this.service.hourlyTickerSwitch!.updateCharacteristic(this.platform.Characteristic.On, false);
-            this.platform.log.debug('hourlyTickerSwitch turned OFF automatically with 1s delay');
+            this.platform.log.debug('Hourly ticker switch turned OFF automatically with 1s delay');
           }, 1000);
         }
         callback(null);
@@ -54,8 +59,14 @@ export class NordpoolPlatformAccessory {
     // init all virtual occupancy sensors for price levels
     for (const key of Object.keys(this.service)) {
       if (/^(cheapest|priciest)/.test(key)) {
-        this.service[key] = this.accessory.getService(`Nordpool_${key}`) || this.accessory.addService(
-          this.platform.Service.OccupancySensor, `Nordpool_${key}`, key);
+        this.service[key] = this.accessory.getService(`Nordpool_${key}`)
+            || this.accessory.addService(this.platform.Service.OccupancySensor, `Nordpool_${key}`, key);
+
+        if ( this.service[key] ) {
+          this.service[key]!
+            .getCharacteristic(this.platform.Characteristic.OccupancyDetected)
+            .setValue(this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED);
+        }
       }
     }
 
@@ -121,7 +132,7 @@ export class NordpoolPlatformAccessory {
           }
         })
         .catch((error) => {
-          this.platform.log.error(`ERROR: Failed to get todays's prices, will retry in 1 hour. ${error}`);
+          this.platform.log.error(`ERR: Failed to get todays's prices, will retry in 1 hour. ${error}`);
         });
     } else {
       this.pricing.today = this.pricesCache.get(todayKey)||[];
@@ -137,13 +148,13 @@ export class NordpoolPlatformAccessory {
     }
 
     if (currentHour === 7 || this.pricing.cheapest5HoursConsec.length===0 ) {
-      this.getCheapestConsecutiveHours(5, this.pricing.today);
+      await this.getCheapestConsecutiveHours(5, this.pricing.today);
     }
 
     // current hour price
     if (this.pricing.today.length === 24) {
       this.pricing.currently = this.pricing.today[currentHour]['price'];
-      this.platform.log.info(`Current hour: ${currentHour}; Price: ${this.pricing.currently} cents`);
+      this.platform.log.info(`Hour: ${currentHour}; Price: ${this.pricing.currently} cents`);
     } else {
       this.platform.log.warn('WARN: Unable to determine current hour Nordpool price because data not available');
     }
@@ -183,7 +194,7 @@ export class NordpoolPlatformAccessory {
   async eleringEE_getNordpoolData() {
     const area = this.platform.config.area.toLowerCase();
     if (!['lt', 'lv', 'ee', 'fi'].includes(area)) {
-      this.platform.log.error(`ERROR: Invalid area code '${this.platform.config.area}' provided`);
+      this.platform.log.error(`Invalid area code '${this.platform.config.area}' configured`);
       return null;
     }
 
@@ -196,12 +207,19 @@ export class NordpoolPlatformAccessory {
     try {
       const url = `https://dashboard.elering.ee/api/nps/price?start=${encodedStart}&end=${encodedEnd}`;
       const response = await axios.get(url);
-      const convertedData = this.eleringEE_convertDataStructure(response.data.data);
-      return convertedData;
+      if (response.status !== 200 ) {
+        this.platform.log.warn(`WARN: Nordpool API provider Elering returned unusual response status ${response.status}`);
+      }
+      if (response.data.data) {
+        const convertedData = this.eleringEE_convertDataStructure(response.data.data);
+        return convertedData;
+      } else {
+        this.platform.log.error(`ERR: Nordpool API provider Elering returned unusual data ${JSON.stringify(response.data)}`);
+      }
     } catch (error) {
-      this.platform.log.error(`ERROR retrieving Nordpool data: ${error}`);
-      return null;
+      this.platform.log.error(`ERR: General Nordpool API provider Elering error: ${error}`);
     }
+    return null;
   }
 
   eleringEE_convertDataStructure(data: { [x: string]: { timestamp: number; price: number }[] }) {
@@ -239,7 +257,7 @@ export class NordpoolPlatformAccessory {
 
     // make sure these arrays are empty on each (new day) re-calculation
     for (const key of Object.keys(this.pricing)) {
-      if (!/^(cheapest|priciest)/.test(key)) {
+      if (!/^(cheapest|priciest|cheapest5HoursConsec)/.test(key)) {
         continue;
       }
       this.pricing[key] = [];
@@ -250,7 +268,6 @@ export class NordpoolPlatformAccessory {
           sortedPrices[Math.ceil(sortedPrices.length / 2)].price) / 2
       ).toFixed(this.decimalPrecision),
     );
-
 
     this.pricing.today
       .map((price, idx) => ({ value: price.price, hour: idx }))
@@ -280,7 +297,7 @@ export class NordpoolPlatformAccessory {
 
     this.platform.log.info(`Cheapest hour(s): ${this.pricing.cheapestHour.join(', ')}`);
     this.platform.log.info(`4 cheapest hours: ${this.pricing.cheapest4Hours.join(', ')}`);
-    this.platform.log.info(`5 cheapest hours₁: ${this.pricing.cheapest5Hours.join(', ')}`);
+    this.platform.log.info(`5 cheapest hours: ${this.pricing.cheapest5Hours.join(', ')}`);
     this.platform.log.info(`6 cheapest hours: ${this.pricing.cheapest6Hours.join(', ')}`);
     this.platform.log.info(`7 cheapest hours: ${this.pricing.cheapest7Hours.join(', ')}`);
     this.platform.log.info(`8 cheapest hours: ${this.pricing.cheapest8Hours.join(', ')}`);
