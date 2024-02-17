@@ -14,7 +14,7 @@ export class NordpoolPlatformAccessory {
 
   private decimalPrecision = this.platform.config.decimalPrecision || 0;
   private excessivePriceMargin = this.platform.config.excessivePriceMargin || 200;
-  private dynamicCheapestConsecutiveHours = this.platform.config.dynamicCheapestConsecutiveHours || false;
+  private dynamicCheapestConsecutiveHours:boolean = this.platform.config.dynamicCheapestConsecutiveHours ?? false;
 
   private pricing = defaultPricing;
   private service = defaultService;
@@ -25,7 +25,6 @@ export class NordpoolPlatformAccessory {
     private readonly platform: NordpoolPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
-
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, PLATFORM_MANUFACTURER)
       .setCharacteristic(this.platform.Characteristic.Model, 'Electricity price sensors')
@@ -150,7 +149,9 @@ export class NordpoolPlatformAccessory {
       this.getCheapestHoursToday();
     }
 
-    await this.getCheapestConsecutiveHours(5, this.pricing.today);
+    if (currentHour === 0 || this.pricing.cheapest5HoursConsec.length === 0) {
+      await this.getCheapestConsecutiveHours(5, this.pricing.today);
+    }
 
     // current hour price
     if (this.pricing.today.length === 24) {
