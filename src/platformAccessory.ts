@@ -149,7 +149,11 @@ export class NordpoolPlatformAccessory {
       this.getCheapestHoursToday();
     }
 
-    if (currentHour === 0 || this.pricing.cheapest5HoursConsec.length === 0) {
+    if (this.pricing.cheapest5HoursConsec.length === 0) {
+      await this.getCheapestConsecutiveHours(5, this.pricing.today);
+    } else if (currentHour === 0 && !this.dynamicCheapestConsecutiveHours) {
+      await this.getCheapestConsecutiveHours(5, this.pricing.today);
+    } else if (currentHour === 7 && this.dynamicCheapestConsecutiveHours) {
       await this.getCheapestConsecutiveHours(5, this.pricing.today);
     }
 
