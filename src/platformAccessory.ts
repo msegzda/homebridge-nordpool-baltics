@@ -194,7 +194,7 @@ export class NordpoolPlatformAccessory {
   async eleringEE_getNordpoolData() {
     const area = this.platform.config.area.toLowerCase();
     if (!['lt', 'lv', 'ee', 'fi'].includes(area)) {
-      this.platform.log.error(`Invalid area code '${this.platform.config.area}' configured`);
+      this.platform.log.error(`ERR: Invalid area code '${this.platform.config.area}' configured`);
       return null;
     }
 
@@ -290,7 +290,9 @@ export class NordpoolPlatformAccessory {
         if (value <= sortedPrices[7].price) {
           this.pricing.cheapest8Hours.push(hour);
         }
-        if (value >= sortedPrices[23].price || value >= this.pricing.median * this.excessivePriceMargin/100 ) {
+        if ((value >= sortedPrices[23].price || value >= this.pricing.median * this.excessivePriceMargin/100)
+                && !this.pricing.cheapest8Hours.includes(hour)
+        ) {
           this.pricing.priciestHour.push(hour);
         }
       });

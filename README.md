@@ -19,7 +19,7 @@ Currently, this plugin supports the following Nordpool areas:
 - Estonia
 - Finland
 
-## Exposed Accessories ##
+## Available Accessories ##
 
 It exposes a few 'virtual' accessories that facilitate versatile HomeKit automation based on Nordpool prices. These include:
 
