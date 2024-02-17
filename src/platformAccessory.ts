@@ -14,7 +14,7 @@ export class NordpoolPlatformAccessory {
 
   private decimalPrecision = this.platform.config.decimalPrecision || 0;
   private excessivePriceMargin = this.platform.config.excessivePriceMargin || 200;
-  private dynamicCheapestConcurrentHours = this.platform.config.dynamicCheapestConcurrentHours || false;
+  private dynamicCheapestConsecutiveHours = this.platform.config.dynamicCheapestConsecutiveHours || false;
 
   private pricing = defaultPricing;
   private service = defaultService;
@@ -126,7 +126,7 @@ export class NordpoolPlatformAccessory {
               this.pricesCache.set(tomorrowKey, tomorrowResults);
               this.platform.log.debug(`OK: pulled Nordpool prices in ${this.platform.config.area} area for TOMORROW (${tomorrowKey})`);
               this.platform.log.debug(JSON.stringify(tomorrowResults.map(({ hour, price }) => ({ hour, price }))));
-              if (this.dynamicCheapestConcurrentHours) {
+              if (this.dynamicCheapestConsecutiveHours) {
                 this.getCheapestHoursIn2days();
               }
             }
@@ -340,7 +340,7 @@ export class NordpoolPlatformAccessory {
   async getCheapestHoursIn2days() {
 
     // make sure its not allowed to execute if not enabled on plugin config
-    if (!this.dynamicCheapestConcurrentHours){
+    if (!this.dynamicCheapestConsecutiveHours){
       return;
     }
 
@@ -359,13 +359,12 @@ export class NordpoolPlatformAccessory {
     const remainingHoursToday = Array.from({length: Math.min(24 - currentHour, 24)}, (_, i) => currentHour + i);
 
     // Check if any of the remaining hours are within the cheapest consecutive hours
-    if( !this.pricing.cheapest5HoursConsec.some(hour => remainingHoursToday.includes(hour)) ) {
+    if( this.pricing.cheapest5HoursConsec.some(hour => remainingHoursToday.includes(hour)) ) {
       // from now till next day 6AM
       twoDaysPricing = this.pricing.today.slice(currentHour, 24).concat(tomorrow.slice(0, 7));
-      this.platform.log.debug(JSON.stringify(twoDaysPricing));
     } else {
-      // entire next day
-      twoDaysPricing = tomorrow;
+      // do nothing, will recalculate 0AM anyway
+      return;
     }
 
     try {
