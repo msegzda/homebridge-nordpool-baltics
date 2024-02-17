@@ -14,6 +14,7 @@ export class NordpoolPlatformAccessory {
 
   private decimalPrecision = this.platform.config.decimalPrecision || 0;
   private excessivePriceMargin = this.platform.config.excessivePriceMargin || 200;
+  private dynamicCheapestConcurrentHours = this.platform.config.dynamicCheapestConcurrentHours || false;
 
   private pricing = defaultPricing;
   private service = defaultService;
@@ -125,7 +126,9 @@ export class NordpoolPlatformAccessory {
               this.pricesCache.set(tomorrowKey, tomorrowResults);
               this.platform.log.debug(`OK: pulled Nordpool prices in ${this.platform.config.area} area for TOMORROW (${tomorrowKey})`);
               this.platform.log.debug(JSON.stringify(tomorrowResults.map(({ hour, price }) => ({ hour, price }))));
-              this.getCheapestHoursIn2days();
+              if (this.dynamicCheapestConcurrentHours) {
+                this.getCheapestHoursIn2days();
+              }
             }
           } else {
             this.platform.log.warn('WARN: API returned no or abnormal results for todays\'s Nordpool prices data. Will retry in 1 hour');
@@ -147,9 +150,7 @@ export class NordpoolPlatformAccessory {
       this.getCheapestHoursToday();
     }
 
-    if (currentHour === 7 || this.pricing.cheapest5HoursConsec.length===0 ) {
-      await this.getCheapestConsecutiveHours(5, this.pricing.today);
-    }
+    await this.getCheapestConsecutiveHours(5, this.pricing.today);
 
     // current hour price
     if (this.pricing.today.length === 24) {
@@ -337,8 +338,15 @@ export class NordpoolPlatformAccessory {
   }
 
   async getCheapestHoursIn2days() {
+
+    // make sure its not allowed to execute if not enabled on plugin config
+    if (!this.dynamicCheapestConcurrentHours){
+      return;
+    }
+
     const todayKey = fnc_todayKey();
     const tomorrowKey = fnc_tomorrowKey();
+    const currentHour = fnc_currentHour();
 
     let tomorrow = [] as Array<PriceData>; tomorrow = this.pricesCache.get(tomorrowKey)||[];
     let twoDaysPricing = [] as Array<PriceData>;
@@ -348,8 +356,17 @@ export class NordpoolPlatformAccessory {
       return;
     }
 
-    // from 7AM till next day 6AM
-    twoDaysPricing = this.pricing.today.slice(7, 24).concat(tomorrow.slice(0, 7));
+    const remainingHoursToday = Array.from({length: Math.min(24 - currentHour, 24)}, (_, i) => currentHour + i);
+
+    // Check if any of the remaining hours are within the cheapest consecutive hours
+    if( !this.pricing.cheapest5HoursConsec.some(hour => remainingHoursToday.includes(hour)) ) {
+      // from now till next day 6AM
+      twoDaysPricing = this.pricing.today.slice(currentHour, 24).concat(tomorrow.slice(0, 7));
+      this.platform.log.debug(JSON.stringify(twoDaysPricing));
+    } else {
+      // entire next day
+      twoDaysPricing = tomorrow;
+    }
 
     try {
       await this.getCheapestConsecutiveHours(5, twoDaysPricing);

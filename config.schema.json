@@ -66,6 +66,13 @@
                 "type": "integer",
                 "minimum": 50,
                 "maximum": 400
+            },
+            "dynamicCheapestConcurrentHours": {
+                "title": "Dynamic Cheapest Concurrent Hours",
+                "description": "If enabled, 5 cheapest concurrent hours will be recalculated using day-ahead pricing. For more details go to <a href='https://github.com/msegzda/homebridge-nordpool-baltics/blob/latest/README.md#cheapest-consecutive-hours-calculation-logic' target='_blank'>plugin README</a>",
+                "required": false,
+                "default": false,
+                "type": "boolean"
             }
         }
     }

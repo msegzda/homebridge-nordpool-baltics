@@ -31,9 +31,19 @@ It exposes a few 'virtual' accessories that facilitate versatile HomeKit automat
 
 1. `Nordpool_cheapest4Hours` to `Nordpool_cheapest8Hours`: A series of Motion Sensors which trigger a 'motion detected' state when the current hour's electricity price ranks among the cheapest of the day. The count can exceed the specified number in the event of repeated same-price occurrences;
 
-1. `Nordpool_cheapest5HoursConsec`: This Motion Sensor triggers during the 5 consecutive lowest-priced electricity hours of the day, ensuring energy-intensive appliances operate uninterrupted for a stretch of 5 hours. Its recalculated with day-ahead data for 0-6AM hours once it becomes available, so sometimes 5 cheapest consecutive hours may shift from evening to nighttime.
+1. `Nordpool_cheapest5HoursConsec`: This Motion Sensor triggers during the 5 consecutive lowest-priced electricity hours ensuring energy-intensive appliances can operate uninterrupted for a stretch of 5 hours. Note more details about its calculation below.
 
 1. `Nordpool_priciestHour`: A Motion Sensor which triggers 'motion detected' when the current hour's electricity price is the most expensive of the day or exceeds configurable median margin (default 200%). This is typically more than one hour during the day.
+
+## Cheapest Consecutive Hours Calculation Logic ##
+
+Motion sensor `Nordpool_cheapest5HoursConsec` calculation logic is the following:
+
+- On initial plugin run (upon restart) its using current day pricing information;
+- At 00:00 (0AM): recalculated using new day pricing information;
+- If 'Dynamic Cheapest Concurrent Hours' enabled on Plugin Config:
+  - At 18:00 (6PM): If 5 consecutive hours happened already it recalculates with day-ahead pricing;
+  - At 18:00 (6PM): If 5 consecutive hours are due to happen later in the evening, its recalculating with added 0-6AM hours from next day. This sometimes allows for 5 consecutive hours to shift from evening to next day nighttime for maximum cost efficiency.
 
 ## Important Remark About Timezones ##
 
