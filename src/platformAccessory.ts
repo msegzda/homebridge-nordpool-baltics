@@ -2,23 +2,23 @@ import { PlatformAccessory } from 'homebridge';
 import { NordpoolPlatform } from './platform';
 
 import {
-  defaultPricing, defaultService, defaultAreaTimezone, PLATFORM_MANUFACTURER, defaultPricesCache,
+  defaultPricing, defaultService, PLATFORM_MANUFACTURER, defaultPricesCache,
   fnc_todayKey, fnc_tomorrowKey, fnc_currentHour, PriceData,
 } from './settings';
 
+import {
+  fnc_checkSystemTimezone, eleringEE_getNordpoolData,
+} from './functions';
+
 import { schedule } from 'node-cron';
-import { DateTime } from 'luxon';
-import axios from 'axios';
 
 export class NordpoolPlatformAccessory {
 
   private decimalPrecision = this.platform.config.decimalPrecision || 0;
   private excessivePriceMargin = this.platform.config.excessivePriceMargin || 200;
   private dynamicCheapestConsecutiveHours:boolean = this.platform.config.dynamicCheapestConsecutiveHours ?? false;
-
   private pricing = defaultPricing;
   private service = defaultService;
-  private areaTimezone = defaultAreaTimezone;
   private pricesCache = defaultPricesCache;
 
   constructor(
@@ -70,7 +70,7 @@ export class NordpoolPlatformAccessory {
       }
     }
 
-    this.checkSystemTimezone();
+    fnc_checkSystemTimezone(this.platform);
 
     this.getPrices();
 
@@ -78,23 +78,6 @@ export class NordpoolPlatformAccessory {
       this.getPrices();
     });
 
-  }
-
-  async checkSystemTimezone( ) {
-    const systemTimezone = DateTime.local().toFormat('ZZ');
-    const preferredTimezone = DateTime.local().setZone(this.areaTimezone).toFormat('ZZ');
-
-    if (systemTimezone !== preferredTimezone) {
-      this.platform.log.warn(
-        `WARN: System timezone ${systemTimezone} DOES NOT match with ${this.platform.config.area} area timezone ${preferredTimezone}.`
-        + 'This may result in incorrect time-to-price coding. If possible, please update your system time setting to match timezone of '
-        + 'your specified Nordpool area.',
-      );
-    } else {
-      this.platform.log.debug(
-        `OK: system timezone ${systemTimezone} match ${this.platform.config.area} area timezone ${preferredTimezone}`,
-      );
-    }
   }
 
   async getPrices() {
@@ -106,7 +89,7 @@ export class NordpoolPlatformAccessory {
     if (this.pricing.today.length === 0
         || (currentHour >= 18 && !this.pricesCache.getSync(tomorrowKey))
     ) {
-      this.eleringEE_getNordpoolData()
+      eleringEE_getNordpoolData(this.platform)
         .then((results) => {
           if (results) {
             const todayResults = results.filter(result => result.day === todayKey);
@@ -196,59 +179,6 @@ export class NordpoolPlatformAccessory {
       this.service.hourlyTickerSwitch!.setCharacteristic(this.platform.Characteristic.On, true);
       }, 1000);
     }
-  }
-
-  async eleringEE_getNordpoolData() {
-    const area = this.platform.config.area.toLowerCase();
-    if (!['lt', 'lv', 'ee', 'fi'].includes(area)) {
-      this.platform.log.error(`ERR: Invalid area code '${this.platform.config.area}' configured`);
-      return null;
-    }
-
-    const start = DateTime.utc().startOf('day').minus({hours:4}).toISO();
-    const end = DateTime.utc().plus({days:1}).endOf('day').toISO();
-
-    const encodedStart = encodeURIComponent(start);
-    const encodedEnd = encodeURIComponent(end);
-
-    try {
-      const url = `https://dashboard.elering.ee/api/nps/price?start=${encodedStart}&end=${encodedEnd}`;
-      const response = await axios.get(url);
-      if (response.status !== 200 ) {
-        this.platform.log.warn(`WARN: Nordpool API provider Elering returned unusual response status ${response.status}`);
-      }
-      if (response.data.data) {
-        const convertedData = this.eleringEE_convertDataStructure(response.data.data);
-        return convertedData;
-      } else {
-        this.platform.log.error(`ERR: Nordpool API provider Elering returned unusual data ${JSON.stringify(response.data)}`);
-      }
-    } catch (error) {
-      this.platform.log.error(`ERR: General Nordpool API provider Elering error: ${error}`);
-    }
-    return null;
-  }
-
-  eleringEE_convertDataStructure(data: { [x: string]: { timestamp: number; price: number }[] }) {
-    const area = this.platform.config.area.toLowerCase();
-
-    return data[area].map((item: { timestamp: number; price: number }) => {
-      // convert the timestamp to ISO string, add the '+02:00' timezone offset
-      const date = DateTime.fromISO(new Date(item.timestamp * 1000).toISOString()).setZone(this.areaTimezone);
-
-      // divide by 10 to convert price to cents per kWh
-      if (item.price < 0) {
-        item.price = 0;
-      } else {
-        item.price = parseFloat((item.price / 10).toFixed(this.decimalPrecision));
-      }
-
-      return {
-        day: date.toFormat('yyyy-MM-dd'),
-        hour: parseInt(date.toFormat('HH')),
-        price: item.price,
-      };
-    });
   }
 
   getCheapestHoursToday() {
