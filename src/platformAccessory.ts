@@ -2,23 +2,23 @@ import { PlatformAccessory } from 'homebridge';
 import { NordpoolPlatform } from './platform';
 
 import {
-  defaultPricing, defaultService, defaultAreaTimezone, PLATFORM_MANUFACTURER, defaultPricesCache,
+  defaultPricing, defaultService, PLATFORM_MANUFACTURER, defaultPricesCache,
   fnc_todayKey, fnc_tomorrowKey, fnc_currentHour, PriceData,
 } from './settings';
 
+import {
+  fnc_checkSystemTimezone, eleringEE_getNordpoolData,
+} from './functions';
+
 import { schedule } from 'node-cron';
-import { DateTime } from 'luxon';
-import axios from 'axios';
 
 export class NordpoolPlatformAccessory {
 
   private decimalPrecision = this.platform.config.decimalPrecision || 0;
   private excessivePriceMargin = this.platform.config.excessivePriceMargin || 200;
   private dynamicCheapestConsecutiveHours:boolean = this.platform.config.dynamicCheapestConsecutiveHours ?? false;
-
   private pricing = defaultPricing;
   private service = defaultService;
-  private areaTimezone = defaultAreaTimezone;
   private pricesCache = defaultPricesCache;
 
   constructor(
@@ -70,7 +70,7 @@ export class NordpoolPlatformAccessory {
       }
     }
 
-    this.checkSystemTimezone();
+    fnc_checkSystemTimezone(this.platform);
 
     this.getPrices();
 
@@ -80,31 +80,16 @@ export class NordpoolPlatformAccessory {
 
   }
 
-  async checkSystemTimezone( ) {
-    const systemTimezone = DateTime.local().toFormat('ZZ');
-    const preferredTimezone = DateTime.local().setZone(this.areaTimezone).toFormat('ZZ');
-
-    if (systemTimezone !== preferredTimezone) {
-      this.platform.log.warn(
-        `WARN: System timezone ${systemTimezone} DOES NOT match with ${this.platform.config.area} area timezone ${preferredTimezone}.`
-        + 'This may result in incorrect time-to-price coding. If possible, please update your system time setting to match timezone of '
-        + 'your specified Nordpool area.',
-      );
-    } else {
-      this.platform.log.debug(
-        `OK: system timezone ${systemTimezone} match ${this.platform.config.area} area timezone ${preferredTimezone}`,
-      );
-    }
-  }
-
   async getPrices() {
     const todayKey = fnc_todayKey();
     const tomorrowKey = fnc_tomorrowKey();
     const currentHour = fnc_currentHour();
 
-    this.pricing.today = this.pricesCache.get(todayKey)||[];
-    if (this.pricing.today.length === 0 || !this.pricesCache.get(todayKey) || (currentHour >= 18 && !this.pricesCache.get(tomorrowKey))) {
-      this.eleringEE_getNordpoolData()
+    this.pricing.today = this.pricesCache.getSync(todayKey, []);
+    if (this.pricing.today.length === 0
+        || (currentHour >= 18 && !this.pricesCache.getSync(tomorrowKey))
+    ) {
+      eleringEE_getNordpoolData(this.platform)
         .then((results) => {
           if (results) {
             const todayResults = results.filter(result => result.day === todayKey);
@@ -137,13 +122,12 @@ export class NordpoolPlatformAccessory {
           this.platform.log.error(`ERR: Failed to get todays's prices, will retry in 1 hour. ${error}`);
         });
     } else {
-      this.pricing.today = this.pricesCache.get(todayKey)||[];
+      this.pricing.today = this.pricesCache.getSync(todayKey, []);
       this.analyze_and_setServices(currentHour);
     }
   }
 
   async analyze_and_setServices (currentHour: number) {
-
     // if new day or cheapest hours not calculated yet
     if (currentHour === 0 || this.pricing.cheapest4Hours.length === 0) {
       this.getCheapestHoursToday();
@@ -151,7 +135,7 @@ export class NordpoolPlatformAccessory {
 
     if (this.pricing.cheapest5HoursConsec.length === 0) {
       await this.getCheapestConsecutiveHours(5, this.pricing.today);
-    } else if (currentHour === 0 && !this.dynamicCheapestConsecutiveHours) {
+    } else if (currentHour === 0 && (!this.dynamicCheapestConsecutiveHours || !this.pricesCache.getSync('5consecutiveUpdated', false))) {
       await this.getCheapestConsecutiveHours(5, this.pricing.today);
     } else if (currentHour === 7 && this.dynamicCheapestConsecutiveHours) {
       await this.getCheapestConsecutiveHours(5, this.pricing.today);
@@ -195,59 +179,6 @@ export class NordpoolPlatformAccessory {
       this.service.hourlyTickerSwitch!.setCharacteristic(this.platform.Characteristic.On, true);
       }, 1000);
     }
-  }
-
-  async eleringEE_getNordpoolData() {
-    const area = this.platform.config.area.toLowerCase();
-    if (!['lt', 'lv', 'ee', 'fi'].includes(area)) {
-      this.platform.log.error(`ERR: Invalid area code '${this.platform.config.area}' configured`);
-      return null;
-    }
-
-    const start = DateTime.utc().startOf('day').minus({hours:4}).toISO();
-    const end = DateTime.utc().plus({days:1}).endOf('day').toISO();
-
-    const encodedStart = encodeURIComponent(start);
-    const encodedEnd = encodeURIComponent(end);
-
-    try {
-      const url = `https://dashboard.elering.ee/api/nps/price?start=${encodedStart}&end=${encodedEnd}`;
-      const response = await axios.get(url);
-      if (response.status !== 200 ) {
-        this.platform.log.warn(`WARN: Nordpool API provider Elering returned unusual response status ${response.status}`);
-      }
-      if (response.data.data) {
-        const convertedData = this.eleringEE_convertDataStructure(response.data.data);
-        return convertedData;
-      } else {
-        this.platform.log.error(`ERR: Nordpool API provider Elering returned unusual data ${JSON.stringify(response.data)}`);
-      }
-    } catch (error) {
-      this.platform.log.error(`ERR: General Nordpool API provider Elering error: ${error}`);
-    }
-    return null;
-  }
-
-  eleringEE_convertDataStructure(data: { [x: string]: { timestamp: number; price: number }[] }) {
-    const area = this.platform.config.area.toLowerCase();
-
-    return data[area].map((item: { timestamp: number; price: number }) => {
-      // convert the timestamp to ISO string, add the '+02:00' timezone offset
-      const date = DateTime.fromISO(new Date(item.timestamp * 1000).toISOString()).setZone(this.areaTimezone);
-
-      // divide by 10 to convert price to cents per kWh
-      if (item.price < 0) {
-        item.price = 0;
-      } else {
-        item.price = parseFloat((item.price / 10).toFixed(this.decimalPrecision));
-      }
-
-      return {
-        day: date.toFormat('yyyy-MM-dd'),
-        hour: parseInt(date.toFormat('HH')),
-        price: item.price,
-      };
-    });
   }
 
   getCheapestHoursToday() {
@@ -327,19 +258,11 @@ export class NordpoolPlatformAccessory {
     }
 
     const cheapestHours = hourSequences.sort((a, b) => a.total - b.total)[0];
-    const newCheapest5HoursConsec = Array.from({length: numHours}, (_, i) => pricing[cheapestHours.startHour + i].hour);
+    this.pricing.cheapest5HoursConsec = Array.from({length: numHours}, (_, i) => pricing[cheapestHours.startHour + i].hour);
 
-    if ( this.pricing.cheapest5HoursConsec.length===0 ) {
-      this.pricing.cheapest5HoursConsec = newCheapest5HoursConsec;
-      this.platform.log.info(
-        `Consecutive ${numHours} cheapest hours: ${this.pricing.cheapest5HoursConsec.join(', ')}`,
-      );
-    } else {
-      this.pricing.cheapest5HoursConsec = newCheapest5HoursConsec;
-      this.platform.log.info(
-        `Consecutive ${numHours} cheapest hours: ${this.pricing.cheapest5HoursConsec.join(', ')} (recalculated)`,
-      );
-    }
+    this.platform.log.info(
+      `Consecutive ${numHours} cheapest hours: ${this.pricing.cheapest5HoursConsec.join(', ')}`,
+    );
   }
 
   async getCheapestHoursIn2days() {
@@ -349,15 +272,14 @@ export class NordpoolPlatformAccessory {
       return;
     }
 
-    const todayKey = fnc_todayKey();
     const tomorrowKey = fnc_tomorrowKey();
     const currentHour = fnc_currentHour();
 
-    let tomorrow = [] as Array<PriceData>; tomorrow = this.pricesCache.get(tomorrowKey)||[];
+    let tomorrow = [] as Array<PriceData>; tomorrow = this.pricesCache.getSync(tomorrowKey, []);
     let twoDaysPricing = [] as Array<PriceData>;
 
-    // stop function if not full data or already updated
-    if ( this.pricing.today.length !== 24 || tomorrow.length !== 24 || this.pricesCache.get(`${todayKey}_5consecUpdated`) ) {
+    // stop function if not full data
+    if ( this.pricing.today.length !== 24 || tomorrow.length !== 24 ) {
       return;
     }
 
@@ -368,13 +290,14 @@ export class NordpoolPlatformAccessory {
       // from now till next day 6AM
       twoDaysPricing = this.pricing.today.slice(currentHour, 24).concat(tomorrow.slice(0, 7));
     } else {
-      // do nothing, will recalculate 0AM anyway
+      // do nothing, allow recalculate 0AM
+      this.pricesCache.remove('5consecutiveUpdated');
       return;
     }
 
     try {
       await this.getCheapestConsecutiveHours(5, twoDaysPricing);
-      this.pricesCache.set(`${todayKey}_5consecUpdated`, 1);
+      this.pricesCache.set('5consecutiveUpdated', 1);
     } catch (error) {
       this.platform.log.error('An error occurred calculating cheapest 5 consecutive hours: ', error);
     }

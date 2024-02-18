@@ -5,5 +5,5 @@
     },
     "editor.rulers": [140],
     "eslint.enable": true,
-    "cSpell.words": ["baltics", "luxon"]
+    "cSpell.words": ["baltics", "Consec", "Elering", "homekit", "luxon"]
 }
