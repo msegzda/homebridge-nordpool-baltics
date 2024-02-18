@@ -102,8 +102,10 @@ export class NordpoolPlatformAccessory {
     const tomorrowKey = fnc_tomorrowKey();
     const currentHour = fnc_currentHour();
 
-    this.pricing.today = this.pricesCache.get(todayKey)||[];
-    if (this.pricing.today.length === 0 || !this.pricesCache.get(todayKey) || (currentHour >= 18 && !this.pricesCache.get(tomorrowKey))) {
+    this.pricing.today = this.pricesCache.getSync(todayKey, []);
+    if (this.pricing.today.length === 0
+        || (currentHour >= 18 && !this.pricesCache.getSync(tomorrowKey))
+    ) {
       this.eleringEE_getNordpoolData()
         .then((results) => {
           if (results) {
@@ -137,13 +139,12 @@ export class NordpoolPlatformAccessory {
           this.platform.log.error(`ERR: Failed to get todays's prices, will retry in 1 hour. ${error}`);
         });
     } else {
-      this.pricing.today = this.pricesCache.get(todayKey)||[];
+      this.pricing.today = this.pricesCache.getSync(todayKey, []);
       this.analyze_and_setServices(currentHour);
     }
   }
 
   async analyze_and_setServices (currentHour: number) {
-
     // if new day or cheapest hours not calculated yet
     if (currentHour === 0 || this.pricing.cheapest4Hours.length === 0) {
       this.getCheapestHoursToday();
@@ -151,7 +152,7 @@ export class NordpoolPlatformAccessory {
 
     if (this.pricing.cheapest5HoursConsec.length === 0) {
       await this.getCheapestConsecutiveHours(5, this.pricing.today);
-    } else if (currentHour === 0 && !this.dynamicCheapestConsecutiveHours) {
+    } else if (currentHour === 0 && (!this.dynamicCheapestConsecutiveHours || !this.pricesCache.getSync('5consecutiveUpdated', false))) {
       await this.getCheapestConsecutiveHours(5, this.pricing.today);
     } else if (currentHour === 7 && this.dynamicCheapestConsecutiveHours) {
       await this.getCheapestConsecutiveHours(5, this.pricing.today);
@@ -327,19 +328,11 @@ export class NordpoolPlatformAccessory {
     }
 
     const cheapestHours = hourSequences.sort((a, b) => a.total - b.total)[0];
-    const newCheapest5HoursConsec = Array.from({length: numHours}, (_, i) => pricing[cheapestHours.startHour + i].hour);
+    this.pricing.cheapest5HoursConsec = Array.from({length: numHours}, (_, i) => pricing[cheapestHours.startHour + i].hour);
 
-    if ( this.pricing.cheapest5HoursConsec.length===0 ) {
-      this.pricing.cheapest5HoursConsec = newCheapest5HoursConsec;
-      this.platform.log.info(
-        `Consecutive ${numHours} cheapest hours: ${this.pricing.cheapest5HoursConsec.join(', ')}`,
-      );
-    } else {
-      this.pricing.cheapest5HoursConsec = newCheapest5HoursConsec;
-      this.platform.log.info(
-        `Consecutive ${numHours} cheapest hours: ${this.pricing.cheapest5HoursConsec.join(', ')} (recalculated)`,
-      );
-    }
+    this.platform.log.info(
+      `Consecutive ${numHours} cheapest hours: ${this.pricing.cheapest5HoursConsec.join(', ')}`,
+    );
   }
 
   async getCheapestHoursIn2days() {
@@ -349,15 +342,14 @@ export class NordpoolPlatformAccessory {
       return;
     }
 
-    const todayKey = fnc_todayKey();
     const tomorrowKey = fnc_tomorrowKey();
     const currentHour = fnc_currentHour();
 
-    let tomorrow = [] as Array<PriceData>; tomorrow = this.pricesCache.get(tomorrowKey)||[];
+    let tomorrow = [] as Array<PriceData>; tomorrow = this.pricesCache.getSync(tomorrowKey, []);
     let twoDaysPricing = [] as Array<PriceData>;
 
-    // stop function if not full data or already updated
-    if ( this.pricing.today.length !== 24 || tomorrow.length !== 24 || this.pricesCache.get(`${todayKey}_5consecUpdated`) ) {
+    // stop function if not full data
+    if ( this.pricing.today.length !== 24 || tomorrow.length !== 24 ) {
       return;
     }
 
@@ -368,13 +360,14 @@ export class NordpoolPlatformAccessory {
       // from now till next day 6AM
       twoDaysPricing = this.pricing.today.slice(currentHour, 24).concat(tomorrow.slice(0, 7));
     } else {
-      // do nothing, will recalculate 0AM anyway
+      // do nothing, allow recalculate 0AM
+      this.pricesCache.remove('5consecutiveUpdated');
       return;
     }
 
     try {
       await this.getCheapestConsecutiveHours(5, twoDaysPricing);
-      this.pricesCache.set(`${todayKey}_5consecUpdated`, 1);
+      this.pricesCache.set('5consecutiveUpdated', 1);
     } catch (error) {
       this.platform.log.error('An error occurred calculating cheapest 5 consecutive hours: ', error);
     }
