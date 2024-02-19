@@ -9,29 +9,54 @@ export const PLATFORM_NAME = 'Nordpool';
 export const PLUGIN_NAME = pkg.name;
 export const PLATFORM_MANUFACTURER = pkg.author.name;
 export const PLATFORM_VERSION = pkg.version;
+export const PLATFORM_SERIAL_NUMBER = 'UN783GU921Y0';
+
+// main device(s)
+export const devices = [
+  {
+    UniqueId: 'JKGhJH654*87pDE',
+    displayName: 'Nordpool',
+  },
+];
 
 export interface SensorType { [key: string]: Service | null }
 
-export interface PriceData {
+export interface NordpoolData {
     day: string;
     hour: number;
     price: number;
-}
+  }
 
-export const defaultPricing = {
-  today: [] as Array<PriceData>, // all prices of today
-  currently: 0.0001, // default light sensor value cannot be 0
-  cheapestHour: [] as Array<number>, // can be more than 1
-  cheapest4Hours: [] as Array<number>, // can be more than 4
-  cheapest5Hours: [] as Array<number>, // can be more than 5
-  cheapest5HoursConsec: [] as Array<number>,
-  cheapest5HoursConsec2days: [] as Array<number>,
-  cheapest6Hours: [] as Array<number>, // can be more than 6
-  cheapest7Hours: [] as Array<number>, // can be more than 7
-  cheapest8Hours: [] as Array<number>, // can be more than 8
-  priciestHour: [] as Array<number>, // can be more than one
-  median: 0 as number,
-  median2days: 0 as number,
+export interface Pricing {
+    today: NordpoolData[];
+    currently: number;
+    cheapestHour: number[];
+    cheapest4Hours: number[];
+    cheapest5Hours: number[];
+    cheapest5HoursConsec: number[];
+    cheapest5HoursConsec2days: number[];
+    cheapest6Hours: number[];
+    cheapest7Hours: number[];
+    cheapest8Hours: number[];
+    priciestHour: number[];
+    median: number;
+    median2days: number;
+  }
+
+export const defaultPricing: Pricing = {
+  today: [],
+  currently: 0.0001,
+  cheapestHour: [],
+  cheapest4Hours: [],
+  cheapest5Hours: [],
+  cheapest5HoursConsec: [],
+  cheapest5HoursConsec2days: [],
+  cheapest6Hours: [],
+  cheapest7Hours: [],
+  cheapest8Hours: [],
+  priciestHour: [],
+  median: 0,
+  median2days: 0,
 };
 
 export const defaultService: SensorType = {
@@ -47,7 +72,7 @@ export const defaultService: SensorType = {
   hourlyTickerSwitch: null,
 };
 
-export const defaultPricesCache = new Cache({ ns: 'homebridge-nordpool-baltics', ttl: 86400 });
+export const defaultPricesCache = new Cache({ ns: 'homebridge-nordpool-baltics', ttl: 172800 });
 
 // same timezone applies to all Nordpool zones: LT, LV, EE, FI
 export const defaultAreaTimezone = 'Europe/Vilnius';

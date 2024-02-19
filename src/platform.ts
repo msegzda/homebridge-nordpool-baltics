@@ -1,6 +1,6 @@
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
 
-import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
+import { PLATFORM_NAME, PLUGIN_NAME, devices } from './settings';
 import { NordpoolPlatformAccessory } from './platformAccessory';
 
 /**
@@ -46,13 +46,6 @@ export class NordpoolPlatform implements DynamicPlatformPlugin {
    * must not be registered again to prevent "duplicate UUID" errors.
    */
   discoverDevices() {
-
-    const devices = [
-      {
-        UniqueId: 'JKGhJH654*87pDE',
-        displayName: 'Nordpool',
-      },
-    ];
 
     // loop over the discovered devices and register each one if it has not already been registered
     for (const device of devices) {
