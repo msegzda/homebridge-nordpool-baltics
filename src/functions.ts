@@ -112,7 +112,7 @@ export class Functions {
     data: { [x: string]: { timestamp: number; price: number }[] },
   ) {
     const area = this.platform.config.area.toLowerCase();
-    const decimalPrecision = this.platform.config.decimalPrecision ?? 0;
+    const decimalPrecision = this.platform.config.decimalPrecision ?? 1;
 
     return data[area].map((item: { timestamp: number; price: number }) => {
       // convert the timestamp to ISO string, add the '+02:00' timezone offset

@@ -12,7 +12,7 @@ import { schedule } from 'node-cron';
 
 export class NordpoolPlatformAccessory {
 
-  private decimalPrecision = this.platform.config.decimalPrecision || 0;
+  private decimalPrecision = this.platform.config.decimalPrecision || 1;
   private excessivePriceMargin = this.platform.config.excessivePriceMargin || 200;
   private dynamicCheapestConsecutiveHours:boolean = this.platform.config.dynamicCheapestConsecutiveHours ?? false;
   private pricing = defaultPricing;
