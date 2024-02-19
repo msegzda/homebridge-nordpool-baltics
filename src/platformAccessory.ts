@@ -2,13 +2,11 @@ import { PlatformAccessory } from 'homebridge';
 import { NordpoolPlatform } from './platform';
 
 import {
-  defaultPricing, defaultService, PLATFORM_MANUFACTURER, defaultPricesCache,
-  fnc_todayKey, fnc_tomorrowKey, fnc_currentHour, PriceData,
+  defaultPricing, defaultService, defaultPricesCache,
+  fnc_todayKey, fnc_tomorrowKey, fnc_currentHour, NordpoolData,
 } from './settings';
 
-import {
-  fnc_checkSystemTimezone, eleringEE_getNordpoolData,
-} from './functions';
+import { Functions } from './functions';
 
 import { schedule } from 'node-cron';
 
@@ -20,64 +18,25 @@ export class NordpoolPlatformAccessory {
   private pricing = defaultPricing;
   private service = defaultService;
   private pricesCache = defaultPricesCache;
+  private fnc = new Functions(this.platform, this.accessory);
 
   constructor(
     private readonly platform: NordpoolPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
-    this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, PLATFORM_MANUFACTURER)
-      .setCharacteristic(this.platform.Characteristic.Model, 'Electricity price sensors')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'UN783GU921Y0');
 
-    // init light sensor for current price
-    this.service.currently = this.accessory.getService('Nordpool_currentPrice') || this.accessory.addService(
-      this.platform.Service.LightSensor, 'Nordpool_currentPrice', 'currentPrice');
+    this.fnc.initAccessories(this.service, this.pricing)
+      .then(() => {
+        this.fnc.checkSystemTimezone();
+        this.getPrices();
 
-    // set default price level
-    if (this.service.currently) {
-      this.service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel).updateValue(this.pricing.currently);
-    }
-
-    // hourly ticker
-    this.service.hourlyTickerSwitch = this.accessory.getService('Nordpool_hourlyTickerSwitch') || this.accessory.addService(
-      this.platform.Service.Switch, 'Nordpool_hourlyTickerSwitch', 'hourlyTickerSwitch');
-
-    // turn OFF hourly ticker if its turned on by schedule or manually
-    this.service.hourlyTickerSwitch.getCharacteristic(this.platform.Characteristic.On)
-      .on('set', (value, callback) => {
-        if(value) {
-          // If switch is manually turned on, start a timer to switch it back off after 1 second
-          setTimeout(() => {
-            this.service.hourlyTickerSwitch!.updateCharacteristic(this.platform.Characteristic.On, false);
-            this.platform.log.debug('Hourly ticker switch turned OFF automatically with 1s delay');
-          }, 1000);
-        }
-        callback(null);
+        schedule('0 * * * *', () => {
+          this.getPrices();
+        });
+      })
+      .catch((error) => {
+        this.platform.log.error(error);
       });
-
-    // init all virtual occupancy sensors for price levels
-    for (const key of Object.keys(this.service)) {
-      if (/^(cheapest|priciest)/.test(key)) {
-        this.service[key] = this.accessory.getService(`Nordpool_${key}`)
-            || this.accessory.addService(this.platform.Service.OccupancySensor, `Nordpool_${key}`, key);
-
-        if ( this.service[key] ) {
-          this.service[key]!
-            .getCharacteristic(this.platform.Characteristic.OccupancyDetected)
-            .setValue(this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED);
-        }
-      }
-    }
-
-    fnc_checkSystemTimezone(this.platform);
-
-    this.getPrices();
-
-    schedule('0 * * * *', () => {
-      this.getPrices();
-    });
-
   }
 
   async getPrices() {
@@ -85,11 +44,28 @@ export class NordpoolPlatformAccessory {
     const tomorrowKey = fnc_tomorrowKey();
     const currentHour = fnc_currentHour();
 
+    // did precision config change?
+    // if changed: clear cache and reload the data from Nordpool prices provider
+    if (
+      this.pricesCache.getSync('decimalPrecision', null) !== null &&
+        this.pricesCache.getSync('decimalPrecision', null) !== this.decimalPrecision
+    ) {
+      this.platform.log.warn(
+        `Configured Decimal Precision value changed from ${this.pricesCache.getSync('decimalPrecision')} to ${this.decimalPrecision}`,
+      );
+      try {
+        await this.pricesCache.remove(todayKey);
+        await this.pricesCache.remove(tomorrowKey);
+      } catch (error) {
+        this.platform.log.error(`ERR: failed clearing pricesCache: ${JSON.stringify(error)}`);
+      }
+    }
+
     this.pricing.today = this.pricesCache.getSync(todayKey, []);
     if (this.pricing.today.length === 0
         || (currentHour >= 18 && !this.pricesCache.getSync(tomorrowKey))
     ) {
-      eleringEE_getNordpoolData(this.platform)
+      this.fnc.eleringEE_getNordpoolData()
         .then((results) => {
           if (results) {
             const todayResults = results.filter(result => result.day === todayKey);
@@ -108,6 +84,10 @@ export class NordpoolPlatformAccessory {
 
             if ( tomorrowResults.length===24 ) {
               this.pricesCache.set(tomorrowKey, tomorrowResults);
+
+              // keep decimalPrecision cache fresh so it does not ttl/expire
+              this.pricesCache.set('decimalPrecision', this.decimalPrecision);
+
               this.platform.log.debug(`OK: pulled Nordpool prices in ${this.platform.config.area} area for TOMORROW (${tomorrowKey})`);
               this.platform.log.debug(JSON.stringify(tomorrowResults.map(({ hour, price }) => ({ hour, price }))));
               if (this.dynamicCheapestConsecutiveHours) {
@@ -275,8 +255,8 @@ export class NordpoolPlatformAccessory {
     const tomorrowKey = fnc_tomorrowKey();
     const currentHour = fnc_currentHour();
 
-    let tomorrow = [] as Array<PriceData>; tomorrow = this.pricesCache.getSync(tomorrowKey, []);
-    let twoDaysPricing = [] as Array<PriceData>;
+    let tomorrow = [] as Array<NordpoolData>; tomorrow = this.pricesCache.getSync(tomorrowKey, []);
+    let twoDaysPricing = [] as Array<NordpoolData>;
 
     // stop function if not full data
     if ( this.pricing.today.length !== 24 || tomorrow.length !== 24 ) {
