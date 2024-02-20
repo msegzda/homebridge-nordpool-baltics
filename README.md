@@ -19,6 +19,12 @@ Currently, this plugin supports the following Nordpool areas:
 - Estonia
 - Finland
 
+## How To Install ##
+
+First, complete the [Homebridge setup](https://homebridge.io/how-to-install-homebridge). Afterwards, the most convenient way to install the `homebridge-nordpool-baltics` plugin is by using the Homebridge plugin manager:
+
+![Install](./images/install.png)
+
 ## Available Accessories ##
 
 It exposes a few 'virtual' accessories that facilitate versatile HomeKit automation based on Nordpool prices. These include:
@@ -33,7 +39,7 @@ It exposes a few 'virtual' accessories that facilitate versatile HomeKit automat
 
 1. `Nordpool_cheapest5HoursConsec`: This Motion Sensor triggers during the 5 consecutive lowest-priced electricity hours ensuring energy-intensive appliances can operate uninterrupted for a stretch of 5 hours. Note more details about its calculation below.
 
-1. `Nordpool_priciestHour`: A Motion Sensor which triggers 'motion detected' when the current hour's electricity price is the most expensive of the day or exceeds configurable median margin (default 200%). This is typically more than one hour during the day.
+1. `Nordpool_priciestHour`: This Motion Sensor triggers 'motion detected' when the current hour's electricity price ranks most expensive of the day or exceeds configurable median margin (default 200%).
 
 ## Cheapest Consecutive Hours Calculation Logic ##
 
