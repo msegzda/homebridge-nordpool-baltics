@@ -9,6 +9,7 @@ export const PLATFORM_NAME = 'Nordpool';
 export const PLUGIN_NAME = pkg.name;
 export const PLATFORM_MANUFACTURER = pkg.author.name;
 export const PLATFORM_VERSION = pkg.version;
+export const PLATFORM_MODEL = 'Electricity price sensors';
 export const PLATFORM_SERIAL_NUMBER = 'UN783GU921Y0';
 
 // main device(s)
