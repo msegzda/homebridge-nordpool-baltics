@@ -5,14 +5,15 @@
 ![NPM Downloads](https://img.shields.io/npm/dw/homebridge-nordpool-baltics)
 ![NPM License](https://img.shields.io/npm/l/homebridge-nordpool-baltics)
 
-This plugin allows you to automate electricity-intensive appliances and devices based on Nordpool's price levels. These can include:
+If your electricity is billed based on hourly rates through a smart meter, this plugin enables you to automate power-intensive appliances in accordance with Nordpool's pricing levels. For example, this could apply to:
 
-- Water heaters (a.k.a boilers)
-- Heating systems (such as radiators)
 - Car charging
-- Power-walls (to balance electricity costs)
+- House heating or cooling devices
+- Power-wall (to balance electricity costs)
+- Washer-dryer
+- Water heater (a.k.a boiler)
 
-Currently, this plugin supports the following Nordpool areas:
+Currently, this plugin supports the following Nordpool electricity market areas:
 
 - Lithuania
 - Latvia
@@ -27,7 +28,7 @@ First, complete the [Homebridge setup](https://homebridge.io/how-to-install-home
 
 ## Available Accessories ##
 
-It exposes a few 'virtual' accessories that facilitate versatile HomeKit automation based on Nordpool prices. These include:
+It exposes a few 'virtual' accessories that facilitate versatile HomeKit automation based on Nordpool price levels. These include:
 
 1. `Nordpool_hourlyTickerSwitch`: A switch that cycles ON and OFF every hour. Use it in 'An Accessory is Controlled' event on HomeKit automation. Then check for desired price/levels further on automation logic;
 
