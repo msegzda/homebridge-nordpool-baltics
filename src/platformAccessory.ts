@@ -154,7 +154,7 @@ export class NordpoolPlatformAccessory {
     }
 
     this.platform.log.info(`Hour: ${currentHour}; Price: ${this.pricing.currently} cents ${
-      activeLevels.length>0 ? '; ('+activeLevels.join(', ')+')' : ''
+      activeLevels.length>0 ? '('+activeLevels.join(', ')+')' : ''
     }`);
 
     // toggle hourly ticker in 1s ON
