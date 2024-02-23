@@ -47,15 +47,16 @@ export class NordpoolPlatformAccessory {
     // if changed: clear cache and reload the data from Nordpool prices provider
     const decimalPrecisionCache = this.pricesCache.getSync('decimalPrecision');
     if (decimalPrecisionCache !== this.decimalPrecision) {
-      this.platform.log.warn(
-        `Configured Decimal Precision value changed from ${decimalPrecisionCache} to ${this.decimalPrecision}`,
-      );
       try {
         await this.pricesCache.remove(todayKey);
         await this.pricesCache.remove(tomorrowKey);
-        this.pricesCache.set('decimalPrecision', this.decimalPrecision);
       } catch (error) {
         this.platform.log.error(`ERR: failed clearing pricesCache: ${JSON.stringify(error)}`);
+      } finally {
+        this.platform.log.warn(
+          `Configured Decimal Precision value changed from ${decimalPrecisionCache} to ${this.decimalPrecision}`,
+        );
+        this.pricesCache.set('decimalPrecision', this.decimalPrecision);
       }
     }
 
@@ -129,7 +130,8 @@ export class NordpoolPlatformAccessory {
 
     // set current price level on light sensor
     if (this.service.currently) {
-      this.service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel).updateValue(this.pricing.currently);
+      this.service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel)
+        .updateValue(this.pricing.currently >= 0.0001 ? this.pricing.currently : 0.0001);
     }
 
     const activeLevels: string[] = [];
@@ -210,7 +212,7 @@ export class NordpoolPlatformAccessory {
         if (value <= sortedPrices[7].price) {
           this.pricing.cheapest8Hours.push(hour);
         }
-        if ((value >= sortedPrices[23].price || value >= this.pricing.median * this.excessivePriceMargin/100)
+        if ((value >= (sortedPrices[23].price * 0.9) || value >= this.pricing.median * this.excessivePriceMargin/100)
                 && !this.pricing.cheapest8Hours.includes(hour)
         ) {
           this.pricing.priciestHour.push(hour);

@@ -39,7 +39,10 @@ It exposes a few 'virtual' accessories that facilitate versatile HomeKit automat
 
 1. `Nordpool_cheapest5HoursConsec`: This Motion Sensor triggers during the 5 consecutive lowest-priced electricity hours ensuring energy-intensive appliances can operate uninterrupted for a stretch of 5 hours. Note more details about its calculation below.
 
-1. `Nordpool_priciestHour`: This Motion Sensor triggers 'motion detected' when the current hour's electricity price ranks most expensive of the day or exceeds configurable median margin (default 200%).
+1. `Nordpool_priciestHour`: This Motion Sensor triggers 'motion detected' when **any** of the following is true:
+    - Current hour price is most expensive of the day;
+    - Current hour price is within 10% difference from most expensive hour;
+    - Current hour price exceeds 'Excessive Price Margin Above Median' value (default 200%).
 
 ## Cheapest Consecutive Hours Calculation Logic ##
 

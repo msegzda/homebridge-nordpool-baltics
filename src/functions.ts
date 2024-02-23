@@ -123,11 +123,6 @@ export class Functions {
       // divide by 10 to convert price to cents per kWh
       item.price = parseFloat((item.price / 10).toFixed(decimalPrecision));
 
-      // no negative value, minimal light sensor value is 0.0001
-      if (item.price <= 0) {
-        item.price = 0.0001;
-      }
-
       return {
         day: date.toFormat('yyyy-MM-dd'),
         hour: parseInt(date.toFormat('HH')),
