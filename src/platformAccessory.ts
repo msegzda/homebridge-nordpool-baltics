@@ -7,13 +7,12 @@ import {
 } from './settings';
 
 import { Functions } from './functions';
-
 import { schedule } from 'node-cron';
 
 export class NordpoolPlatformAccessory {
 
-  private decimalPrecision = this.platform.config.decimalPrecision || 0;
-  private excessivePriceMargin = this.platform.config.excessivePriceMargin || 200;
+  private decimalPrecision = this.platform.config.decimalPrecision ?? 1;
+  private excessivePriceMargin = this.platform.config.excessivePriceMargin ?? 200;
   private dynamicCheapestConsecutiveHours:boolean = this.platform.config.dynamicCheapestConsecutiveHours ?? false;
   private pricing = defaultPricing;
   private service = defaultService;
@@ -46,16 +45,15 @@ export class NordpoolPlatformAccessory {
 
     // did precision config change?
     // if changed: clear cache and reload the data from Nordpool prices provider
-    if (
-      this.pricesCache.getSync('decimalPrecision', null) !== null &&
-        this.pricesCache.getSync('decimalPrecision', null) !== this.decimalPrecision
-    ) {
+    const decimalPrecisionCache = this.pricesCache.getSync('decimalPrecision');
+    if (decimalPrecisionCache !== this.decimalPrecision) {
       this.platform.log.warn(
-        `Configured Decimal Precision value changed from ${this.pricesCache.getSync('decimalPrecision')} to ${this.decimalPrecision}`,
+        `Configured Decimal Precision value changed from ${decimalPrecisionCache} to ${this.decimalPrecision}`,
       );
       try {
         await this.pricesCache.remove(todayKey);
         await this.pricesCache.remove(tomorrowKey);
+        this.pricesCache.set('decimalPrecision', this.decimalPrecision);
       } catch (error) {
         this.platform.log.error(`ERR: failed clearing pricesCache: ${JSON.stringify(error)}`);
       }
@@ -78,7 +76,7 @@ export class NordpoolPlatformAccessory {
               this.platform.log.debug(JSON.stringify(todayResults.map(({ hour, price }) => ({ hour, price }))));
               this.analyze_and_setServices(currentHour);
             } else {
-              this.platform.log.warn('WARN: Something is incorrect with API response. Unable to determine TODAYS Nordpool prices.');
+              this.platform.log.warn('WARN: Something is incorrect with API response. Unable to determine today\'s Nordpool prices.');
               this.platform.log.warn(`Raw response: ${results}`);
             }
 
@@ -108,6 +106,14 @@ export class NordpoolPlatformAccessory {
   }
 
   async analyze_and_setServices (currentHour: number) {
+
+    if (this.pricing.today.length === 24) {
+      this.pricing.currently = this.pricing.today[currentHour]['price'];
+    } else {
+      this.platform.log.warn('WARN: Unable to determine current hour Nordpool price because data not available');
+      return;
+    }
+
     // if new day or cheapest hours not calculated yet
     if (currentHour === 0 || this.pricing.cheapest4Hours.length === 0) {
       this.getCheapestHoursToday();
@@ -121,19 +127,12 @@ export class NordpoolPlatformAccessory {
       await this.getCheapestConsecutiveHours(5, this.pricing.today);
     }
 
-    // current hour price
-    if (this.pricing.today.length === 24) {
-      this.pricing.currently = this.pricing.today[currentHour]['price'];
-      this.platform.log.info(`Hour: ${currentHour}; Price: ${this.pricing.currently} cents`);
-    } else {
-      this.platform.log.warn('WARN: Unable to determine current hour Nordpool price because data not available');
-    }
-
     // set current price level on light sensor
     if (this.service.currently) {
       this.service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel).updateValue(this.pricing.currently);
     }
 
+    const activeLevels: string[] = [];
     // set price levels on relevant occupancy sensors
     for (const key of Object.keys(this.pricing)) {
       if (!/^(cheapest|priciest)/.test(key)) {
@@ -144,14 +143,18 @@ export class NordpoolPlatformAccessory {
         continue;
       }
 
-    this.service[key]!.setCharacteristic(
-      this.platform.Characteristic.OccupancyDetected,
-      this.pricing[key].includes(currentHour)
-        ? this.platform.Characteristic.OccupancyDetected.OCCUPANCY_DETECTED
-        : this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED,
-    );
+      let characteristic = this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED;
+      if (this.pricing[key].includes(currentHour) ) {
+        characteristic = this.platform.Characteristic.OccupancyDetected.OCCUPANCY_DETECTED;
+        activeLevels.push(key);
+      }
 
+      this.service[key]!.setCharacteristic(this.platform.Characteristic.OccupancyDetected, characteristic);
     }
+
+    this.platform.log.info(`Hour: ${currentHour}; Price: ${this.pricing.currently} cents ${
+      activeLevels.length>0 ? '('+activeLevels.join(', ')+')' : ''
+    }`);
 
     // toggle hourly ticker in 1s ON
     if (this.service.hourlyTickerSwitch) {

@@ -5,7 +5,7 @@ import { DateTime } from 'luxon';
 import axios from 'axios';
 
 import {
-  defaultAreaTimezone, PLATFORM_MANUFACTURER, PLATFORM_SERIAL_NUMBER, Pricing, SensorType,
+  defaultAreaTimezone, PLATFORM_MANUFACTURER, PLATFORM_MODEL, PLATFORM_SERIAL_NUMBER, Pricing, SensorType,
 } from './settings';
 
 export class Functions {
@@ -21,7 +21,7 @@ export class Functions {
 
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, PLATFORM_MANUFACTURER)
-      .setCharacteristic(this.platform.Characteristic.Model, 'Electricity price sensors')
+      .setCharacteristic(this.platform.Characteristic.Model, PLATFORM_MODEL)
       .setCharacteristic(this.platform.Characteristic.SerialNumber, PLATFORM_SERIAL_NUMBER);
 
     // init light sensor for current price
@@ -39,19 +39,21 @@ export class Functions {
       this.platform.Service.Switch, 'Nordpool_hourlyTickerSwitch', 'hourlyTickerSwitch');
 
     // turn OFF hourly ticker if its turned on by schedule or manually
-    service.hourlyTickerSwitch!.getCharacteristic(this.platform.Characteristic.On)
-      .on('set', (value, callback) => {
-        if(value) {
-        // If switch is manually turned on, start a timer to switch it back off after 1 second
-          setTimeout(() => {
-        service.hourlyTickerSwitch!.updateCharacteristic(this.platform.Characteristic.On, false);
-        this.platform.log.debug('Hourly ticker switch turned OFF automatically with 1s delay');
-          }, 1000);
-        }
-        callback(null);
-      });
+    if (service.hourlyTickerSwitch) {
+      service.hourlyTickerSwitch.getCharacteristic(this.platform.Characteristic.On)
+        .on('set', (value, callback) => {
+          if(value) {
+            // If switch is manually turned on, start a timer to switch it back off after 1 second
+            setTimeout(() => {
+              service.hourlyTickerSwitch!.updateCharacteristic(this.platform.Characteristic.On, false);
+              this.platform.log.debug('Hourly ticker switch turned OFF automatically with 1s delay');
+            }, 1000);
+          }
+          callback(null);
+        });
+    }
 
-    // init all virtual occupancy sensors for price levels
+    // init virtual occupancy sensors for price levels
     for (const key of Object.keys(service)) {
       if (/^(cheapest|priciest)/.test(key)) {
         service[key] = this.accessory.getService(`Nordpool_${key}`)
@@ -112,17 +114,18 @@ export class Functions {
     data: { [x: string]: { timestamp: number; price: number }[] },
   ) {
     const area = this.platform.config.area.toLowerCase();
-    const decimalPrecision = this.platform.config.decimalPrecision ?? 0;
+    const decimalPrecision = this.platform.config.decimalPrecision ?? 1;
 
     return data[area].map((item: { timestamp: number; price: number }) => {
       // convert the timestamp to ISO string, add the '+02:00' timezone offset
       const date = DateTime.fromISO(new Date(item.timestamp * 1000).toISOString()).setZone(defaultAreaTimezone);
 
       // divide by 10 to convert price to cents per kWh
-      if (item.price < 0) {
-        item.price = 0;
-      } else {
-        item.price = parseFloat((item.price / 10).toFixed(decimalPrecision));
+      item.price = parseFloat((item.price / 10).toFixed(decimalPrecision));
+
+      // no negative value, minimal light sensor value is 0.0001
+      if (item.price <= 0) {
+        item.price = 0.0001;
       }
 
       return {
