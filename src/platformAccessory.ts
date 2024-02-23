@@ -45,16 +45,15 @@ export class NordpoolPlatformAccessory {
 
     // did precision config change?
     // if changed: clear cache and reload the data from Nordpool prices provider
-    if (
-      this.pricesCache.getSync('decimalPrecision', null) !== null &&
-        this.pricesCache.getSync('decimalPrecision', null) !== this.decimalPrecision
-    ) {
+    const decimalPrecisionCache = this.pricesCache.getSync('decimalPrecision');
+    if (decimalPrecisionCache !== this.decimalPrecision) {
       this.platform.log.warn(
-        `Configured Decimal Precision value changed from ${this.pricesCache.getSync('decimalPrecision')} to ${this.decimalPrecision}`,
+        `Configured Decimal Precision value changed from ${decimalPrecisionCache} to ${this.decimalPrecision}`,
       );
       try {
         await this.pricesCache.remove(todayKey);
         await this.pricesCache.remove(tomorrowKey);
+        this.pricesCache.set('decimalPrecision', this.decimalPrecision);
       } catch (error) {
         this.platform.log.error(`ERR: failed clearing pricesCache: ${JSON.stringify(error)}`);
       }

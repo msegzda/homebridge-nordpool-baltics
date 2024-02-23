@@ -31,7 +31,7 @@ It exposes a few 'virtual' accessories that facilitate versatile HomeKit automat
 
 1. `Nordpool_hourlyTickerSwitch`: A switch that cycles ON and OFF every hour. Use it in 'An Accessory is Controlled' event on HomeKit automation. Then check for desired price/levels further on automation logic;
 
-1. `Nordpool_currentPrice`: A Light Sensor indicating the current hour's electricity price in Euro cents. Scale: 1 LUX = 1 cent;
+1. `Nordpool_currentPrice`: A Light Sensor representing the current hour's electricity price in Euro cents (1 LUX = 1 cent). Due to HomeKit limitation, the minimal value is 0.0001, even if the actual price is 0 or negative.
 
 1. `Nordpool_cheapestHour`: Motion Sensor goes into 'motion detected' state if current hour electricity price ranks cheapest in the day. There can be more than one cheapest hours in the event of repeated same-price occurrences;
 

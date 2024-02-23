@@ -121,11 +121,11 @@ export class Functions {
       const date = DateTime.fromISO(new Date(item.timestamp * 1000).toISOString()).setZone(defaultAreaTimezone);
 
       // divide by 10 to convert price to cents per kWh
+      item.price = parseFloat((item.price / 10).toFixed(decimalPrecision));
+
       // no negative value, minimal light sensor value is 0.0001
       if (item.price <= 0) {
         item.price = 0.0001;
-      } else {
-        item.price = parseFloat((item.price / 10).toFixed(decimalPrecision));
       }
 
       return {
