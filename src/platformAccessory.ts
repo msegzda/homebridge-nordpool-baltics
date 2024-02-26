@@ -14,17 +14,18 @@ export class NordpoolPlatformAccessory {
   private decimalPrecision = this.platform.config.decimalPrecision ?? 1;
   private excessivePriceMargin = this.platform.config.excessivePriceMargin ?? 200;
   private dynamicCheapestConsecutiveHours:boolean = this.platform.config.dynamicCheapestConsecutiveHours ?? false;
+  private plotTheChart:boolean = this.platform.config.plotTheChart ?? false;
   private pricing = defaultPricing;
   private service = defaultService;
   private pricesCache = defaultPricesCache;
-  private fnc = new Functions(this.platform, this.accessory);
+  private fnc = new Functions(this.platform, this.accessory, this.pricing);
 
   constructor(
     private readonly platform: NordpoolPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
 
-    this.fnc.initAccessories(this.service, this.pricing)
+    this.fnc.initAccessories(this.service)
       .then(() => {
         this.fnc.checkSystemTimezone();
         this.getPrices();
@@ -47,15 +48,16 @@ export class NordpoolPlatformAccessory {
     // if changed: clear cache and reload the data from Nordpool prices provider
     const decimalPrecisionCache = this.pricesCache.getSync('decimalPrecision');
     if (decimalPrecisionCache !== this.decimalPrecision) {
-      this.platform.log.warn(
-        `Configured Decimal Precision value changed from ${decimalPrecisionCache} to ${this.decimalPrecision}`,
-      );
       try {
         await this.pricesCache.remove(todayKey);
         await this.pricesCache.remove(tomorrowKey);
-        this.pricesCache.set('decimalPrecision', this.decimalPrecision);
       } catch (error) {
         this.platform.log.error(`ERR: failed clearing pricesCache: ${JSON.stringify(error)}`);
+      } finally {
+        this.platform.log.warn(
+          `Configured Decimal Precision value changed from ${decimalPrecisionCache} to ${this.decimalPrecision}`,
+        );
+        this.pricesCache.set('decimalPrecision', this.decimalPrecision);
       }
     }
 
@@ -119,20 +121,30 @@ export class NordpoolPlatformAccessory {
       this.getCheapestHoursToday();
     }
 
+    let recalcCheapestConsecutiveHours = false;
     if (this.pricing.cheapest5HoursConsec.length === 0) {
-      await this.getCheapestConsecutiveHours(5, this.pricing.today);
+      recalcCheapestConsecutiveHours = true;
     } else if (currentHour === 0 && (!this.dynamicCheapestConsecutiveHours || !this.pricesCache.getSync('5consecutiveUpdated', false))) {
-      await this.getCheapestConsecutiveHours(5, this.pricing.today);
+      recalcCheapestConsecutiveHours = true;
     } else if (currentHour === 7 && this.dynamicCheapestConsecutiveHours) {
-      await this.getCheapestConsecutiveHours(5, this.pricing.today);
+      recalcCheapestConsecutiveHours = true;
+    }
+
+    if (recalcCheapestConsecutiveHours) {
+      this.fnc.getCheapestConsecutiveHours(5, this.pricing.today).then((retVal) => {
+        this.pricing.cheapest5HoursConsec = retVal;
+      }).catch((error)=> {
+        this.pricing.cheapest5HoursConsec = []; // make sure its empty in case of error
+        this.platform.log.error('An error occurred calculating cheapest 5 consecutive hours: ', error);
+      });
     }
 
     // set current price level on light sensor
     if (this.service.currently) {
-      this.service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel).updateValue(this.pricing.currently);
+      this.service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel)
+        .updateValue(this.pricing.currently >= 0.0001 ? this.pricing.currently : 0.0001);
     }
 
-    const activeLevels: string[] = [];
     // set price levels on relevant occupancy sensors
     for (const key of Object.keys(this.pricing)) {
       if (!/^(cheapest|priciest)/.test(key)) {
@@ -146,15 +158,12 @@ export class NordpoolPlatformAccessory {
       let characteristic = this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED;
       if (this.pricing[key].includes(currentHour) ) {
         characteristic = this.platform.Characteristic.OccupancyDetected.OCCUPANCY_DETECTED;
-        activeLevels.push(key);
       }
 
       this.service[key]!.setCharacteristic(this.platform.Characteristic.OccupancyDetected, characteristic);
     }
 
-    this.platform.log.info(`Hour: ${currentHour}; Price: ${this.pricing.currently} cents ${
-      activeLevels.length>0 ? '('+activeLevels.join(', ')+')' : ''
-    }`);
+    this.platform.log.info(`Hour: ${currentHour}; Price: ${this.pricing.currently} cents`);
 
     // toggle hourly ticker in 1s ON
     if (this.service.hourlyTickerSwitch) {
@@ -210,7 +219,7 @@ export class NordpoolPlatformAccessory {
         if (value <= sortedPrices[7].price) {
           this.pricing.cheapest8Hours.push(hour);
         }
-        if ((value >= sortedPrices[23].price || value >= this.pricing.median * this.excessivePriceMargin/100)
+        if ((value >= (sortedPrices[23].price * 0.9) || value >= this.pricing.median * this.excessivePriceMargin/100)
                 && !this.pricing.cheapest8Hours.includes(hour)
         ) {
           this.pricing.priciestHour.push(hour);
@@ -223,29 +232,15 @@ export class NordpoolPlatformAccessory {
     this.platform.log.info(`6 cheapest hours: ${this.pricing.cheapest6Hours.join(', ')}`);
     this.platform.log.info(`7 cheapest hours: ${this.pricing.cheapest7Hours.join(', ')}`);
     this.platform.log.info(`8 cheapest hours: ${this.pricing.cheapest8Hours.join(', ')}`);
-    this.platform.log.debug(`Configured excessive price above median margin: ${this.excessivePriceMargin}`);
     this.platform.log.info(`Most expensive hour(s): ${this.pricing.priciestHour.join(', ')}`);
     this.platform.log.info(`Median price today: ${this.pricing.median} cents`);
-  }
 
-  async getCheapestConsecutiveHours(numHours: number, pricing) {
-    interface HourSequence {
-        startHour: number;
-        total: number;
-    }
-    const hourSequences: HourSequence[] = [];
-
-    for(let i = 0; i <= pricing.length - numHours; i++) {
-      const totalSum = pricing.slice(i, i + numHours).reduce((total, priceObj) => total + priceObj.price, 0);
-      hourSequences.push({ startHour: i, total: totalSum });
+    if (this.plotTheChart) {
+      this.fnc.plotTheChart().then().catch((error)=> {
+        this.platform.log.error('An error occurred plotting the chart for today\'s Nordpool data: ', error);
+      });
     }
 
-    const cheapestHours = hourSequences.sort((a, b) => a.total - b.total)[0];
-    this.pricing.cheapest5HoursConsec = Array.from({length: numHours}, (_, i) => pricing[cheapestHours.startHour + i].hour);
-
-    this.platform.log.info(
-      `Consecutive ${numHours} cheapest hours: ${this.pricing.cheapest5HoursConsec.join(', ')}`,
-    );
   }
 
   async getCheapestHoursIn2days() {
@@ -278,12 +273,11 @@ export class NordpoolPlatformAccessory {
       return;
     }
 
-    try {
-      await this.getCheapestConsecutiveHours(5, twoDaysPricing);
-      this.pricesCache.set('5consecutiveUpdated', 1);
-    } catch (error) {
+    this.fnc.getCheapestConsecutiveHours(5, twoDaysPricing).then((retVal) => {
+      this.pricing.cheapest5HoursConsec = retVal;
+    }).catch((error)=> {
       this.platform.log.error('An error occurred calculating cheapest 5 consecutive hours: ', error);
-    }
+    });
 
   }
 
