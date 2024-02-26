@@ -3,9 +3,11 @@ import { NordpoolPlatform } from './platform';
 
 import { DateTime } from 'luxon';
 import axios from 'axios';
+import * as asciichart from 'asciichart';
+
 
 import {
-  defaultAreaTimezone, PLATFORM_MANUFACTURER, PLATFORM_MODEL, PLATFORM_SERIAL_NUMBER, Pricing, SensorType,
+  defaultAreaTimezone, PLATFORM_MANUFACTURER, PLATFORM_MODEL, PLATFORM_SERIAL_NUMBER, Pricing, NordpoolData, SensorType,
 } from './settings';
 
 export class Functions {
@@ -13,10 +15,11 @@ export class Functions {
   constructor(
     private readonly platform: NordpoolPlatform,
     private readonly accessory: PlatformAccessory,
+    private readonly pricing: Pricing,
   ) {}
 
   async initAccessories(
-    service: SensorType, pricing: Pricing,
+    service: SensorType,
   ) {
 
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
@@ -31,7 +34,7 @@ export class Functions {
     // set default price level
     if (service.currently) {
       service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel)
-        .updateValue(pricing.currently);
+        .updateValue(this.pricing.currently);
     }
 
     // hourly ticker
@@ -131,4 +134,40 @@ export class Functions {
     });
   }
 
+  async getCheapestConsecutiveHours(numHours: number, pricesSequence: NordpoolData[] ): Promise<number[]> {
+    interface HourSequence {
+        startHour: number;
+        total: number;
+    }
+    const hourSequences: HourSequence[] = [];
+
+    for(let i = 0; i <= pricesSequence.length - numHours; i++) {
+      const totalSum = pricesSequence.slice(i, i + numHours).reduce((total, priceObj) => total + priceObj.price, 0);
+      hourSequences.push({ startHour: i, total: totalSum });
+    }
+
+    const cheapestHours = hourSequences.sort((a, b) => a.total - b.total)[0];
+    const retVal = Array.from({length: numHours}, (_, i) => pricesSequence[cheapestHours.startHour + i].hour);
+
+    this.platform.log.info(
+      `Consecutive ${numHours} cheapest hours: ${retVal.join(', ')}`,
+    );
+    return retVal;
+  }
+
+  async plotTheChart(todayData){
+
+    const priceData = todayData.map(elem => elem.price);
+
+    const chart = asciichart.plot(priceData, {
+      padding: '',
+      height: 9,
+    });
+
+    const lines = chart.split('\n');
+
+    lines.forEach((line: string) => {
+      this.platform.log.warn(line);
+    });
+  }
 }

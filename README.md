@@ -22,9 +22,7 @@ Currently, this plugin supports the following Nordpool electricity market areas:
 
 ## How To Install ##
 
-First, complete the [Homebridge setup](https://homebridge.io/how-to-install-homebridge). Afterwards, the most convenient way to install the `homebridge-nordpool-baltics` plugin is by using the Homebridge Plugins Manager:
-
-![Install](./images/install.png)
+First, complete the [Homebridge setup](https://homebridge.io/how-to-install-homebridge). Afterwards, the most convenient way to install the `homebridge-nordpool-baltics` plugin is by using the Homebridge Plugins Manager.
 
 ## Available Accessories ##
 
