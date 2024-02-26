@@ -155,9 +155,14 @@ export class Functions {
     return retVal;
   }
 
-  async plotTheChart(todayData){
+  async plotTheChart(){
 
-    const priceData = todayData.map(elem => elem.price);
+    if (this.pricing.today.length !== 24) {
+      this.platform.log.warn('Cannot plot the chart because not complete or no pricing information is available');
+      return;
+    }
+
+    const priceData = this.pricing.today.map(elem => elem.price);
 
     const chart = asciichart.plot(priceData, {
       padding: '',

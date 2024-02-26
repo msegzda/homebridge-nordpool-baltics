@@ -139,14 +139,12 @@ export class NordpoolPlatformAccessory {
       });
     }
 
-
     // set current price level on light sensor
     if (this.service.currently) {
       this.service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel)
         .updateValue(this.pricing.currently >= 0.0001 ? this.pricing.currently : 0.0001);
     }
 
-    const activeLevels: string[] = [];
     // set price levels on relevant occupancy sensors
     for (const key of Object.keys(this.pricing)) {
       if (!/^(cheapest|priciest)/.test(key)) {
@@ -160,15 +158,12 @@ export class NordpoolPlatformAccessory {
       let characteristic = this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED;
       if (this.pricing[key].includes(currentHour) ) {
         characteristic = this.platform.Characteristic.OccupancyDetected.OCCUPANCY_DETECTED;
-        activeLevels.push(key);
       }
 
       this.service[key]!.setCharacteristic(this.platform.Characteristic.OccupancyDetected, characteristic);
     }
 
-    this.platform.log.info(`Hour: ${currentHour}; Price: ${this.pricing.currently} cents ${
-      activeLevels.length>0 ? '('+activeLevels.join(', ')+')' : ''
-    }`);
+    this.platform.log.info(`Hour: ${currentHour}; Price: ${this.pricing.currently} cents`);
 
     // toggle hourly ticker in 1s ON
     if (this.service.hourlyTickerSwitch) {
@@ -241,7 +236,9 @@ export class NordpoolPlatformAccessory {
     this.platform.log.info(`Median price today: ${this.pricing.median} cents`);
 
     if (this.plotTheChart) {
-      this.fnc.plotTheChart(this.pricing.today);
+      this.fnc.plotTheChart().then().catch((error)=> {
+        this.platform.log.error('An error occurred plotting the chart for today\'s Nordpool data: ', error);
+      });
     }
 
   }
