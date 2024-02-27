@@ -165,7 +165,7 @@ export class Functions {
     const priceData = this.pricing.today.map(elem => elem.price);
 
     const chart = asciichart.plot(priceData, {
-      padding: '',
+      padding: '      ',
       height: 9,
     });
 
