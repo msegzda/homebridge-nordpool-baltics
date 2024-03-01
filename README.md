@@ -1,8 +1,9 @@
 # homebridge-nordpool-baltics #
 
-![NPM Version](https://img.shields.io/npm/v/homebridge-nordpool-baltics)
+[![NPM Version](https://img.shields.io/npm/v/homebridge-nordpool-baltics)](https://www.npmjs.com/package/homebridge-nordpool-baltics/v/latest)
+[![GitHub last commit](https://img.shields.io/github/last-commit/msegzda/homebridge-nordpool-baltics.svg)](https://github.com/msegzda/homebridge-nordpool-baltics)
 ![NPM Build Status](https://img.shields.io/github/actions/workflow/status/msegzda/homebridge-nordpool-baltics/npm-publish.yml)
-![NPM Downloads](https://img.shields.io/npm/dw/homebridge-nordpool-baltics)
+[![NPM Downloads](https://img.shields.io/npm/dw/homebridge-nordpool-baltics)](https://www.npmjs.com/package/homebridge-nordpool-baltics?activeTab=versions)
 ![NPM License](https://img.shields.io/npm/l/homebridge-nordpool-baltics)
 
 If your electricity is billed based on hourly rates through a smart meter, this plugin enables you to automate power-intensive appliances in accordance with Nordpool's pricing levels. For example, this could apply to:

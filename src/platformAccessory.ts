@@ -12,20 +12,18 @@ import { schedule } from 'node-cron';
 export class NordpoolPlatformAccessory {
 
   private decimalPrecision = this.platform.config.decimalPrecision ?? 1;
-  private excessivePriceMargin = this.platform.config.excessivePriceMargin ?? 200;
   private dynamicCheapestConsecutiveHours:boolean = this.platform.config.dynamicCheapestConsecutiveHours ?? false;
-  private plotTheChart:boolean = this.platform.config.plotTheChart ?? false;
   private pricing = defaultPricing;
   private service = defaultService;
   private pricesCache = defaultPricesCache;
-  private fnc = new Functions(this.platform, this.accessory, this.pricing);
+  private fnc = new Functions(this.platform, this.accessory, this.pricing, this.service);
 
   constructor(
     private readonly platform: NordpoolPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
 
-    this.fnc.initAccessories(this.service)
+    this.fnc.initAccessories()
       .then(() => {
         this.fnc.checkSystemTimezone();
         this.getPrices();
@@ -118,21 +116,17 @@ export class NordpoolPlatformAccessory {
 
     // if new day or cheapest hours not calculated yet
     if (currentHour === 0 || this.pricing.cheapest4Hours.length === 0) {
-      this.getCheapestHoursToday();
+      this.fnc.getCheapestHoursToday();
     }
 
-    let recalcCheapestConsecutiveHours = false;
-    if (this.pricing.cheapest5HoursConsec.length === 0) {
-      recalcCheapestConsecutiveHours = true;
-    } else if (currentHour === 0 && (!this.dynamicCheapestConsecutiveHours || !this.pricesCache.getSync('5consecutiveUpdated', false))) {
-      recalcCheapestConsecutiveHours = true;
-    } else if (currentHour === 7 && this.dynamicCheapestConsecutiveHours) {
-      recalcCheapestConsecutiveHours = true;
-    }
-
-    if (recalcCheapestConsecutiveHours) {
+    if (
+      this.pricing.cheapest5HoursConsec.length === 0
+        || (currentHour === 0 && (!this.dynamicCheapestConsecutiveHours || !this.pricesCache.getSync('5consecutiveUpdated', false)))
+        || (currentHour === 7 && this.dynamicCheapestConsecutiveHours)
+    ) {
       this.fnc.getCheapestConsecutiveHours(5, this.pricing.today).then((retVal) => {
         this.pricing.cheapest5HoursConsec = retVal;
+        this.fnc.setOccupancyByHour(currentHour, 'cheapest5HoursConsec');
       }).catch((error)=> {
         this.pricing.cheapest5HoursConsec = []; // make sure its empty in case of error
         this.platform.log.error('An error occurred calculating cheapest 5 consecutive hours: ', error);
@@ -155,12 +149,7 @@ export class NordpoolPlatformAccessory {
         continue;
       }
 
-      let characteristic = this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED;
-      if (this.pricing[key].includes(currentHour) ) {
-        characteristic = this.platform.Characteristic.OccupancyDetected.OCCUPANCY_DETECTED;
-      }
-
-      this.service[key]!.setCharacteristic(this.platform.Characteristic.OccupancyDetected, characteristic);
+      this.fnc.setOccupancyByHour(currentHour, key);
     }
 
     this.platform.log.info(`Hour: ${currentHour}; Price: ${this.pricing.currently} cents`);
@@ -171,76 +160,6 @@ export class NordpoolPlatformAccessory {
       this.service.hourlyTickerSwitch!.setCharacteristic(this.platform.Characteristic.On, true);
       }, 1000);
     }
-  }
-
-  getCheapestHoursToday() {
-    if (this.pricing.today.length !== 24) {
-      this.platform.log.warn(
-        'WARN: Cannot determine cheapest hours of the day because Nordpool dataset is not available '
-        + `or has abnormal amount of elements: ${this.pricing.today.length} (must be 24)`,
-      );
-      return;
-    }
-
-    const sortedPrices = [...this.pricing.today].sort((a, b) => a.price - b.price);
-
-    // make sure these arrays are empty on each (new day) re-calculation
-    for (const key of Object.keys(this.pricing)) {
-      if (!/^(cheapest|priciest|cheapest5HoursConsec)/.test(key)) {
-        continue;
-      }
-      this.pricing[key] = [];
-    }
-
-    this.pricing.median = parseFloat(
-      ((sortedPrices[Math.floor(sortedPrices.length / 2) - 1].price +
-          sortedPrices[Math.ceil(sortedPrices.length / 2)].price) / 2
-      ).toFixed(this.decimalPrecision),
-    );
-
-    this.pricing.today
-      .map((price, idx) => ({ value: price.price, hour: idx }))
-      .forEach(({ value, hour }) => {
-        if (value <= sortedPrices[0].price) {
-          this.pricing.cheapestHour.push(hour);
-        }
-        if (value <= sortedPrices[3].price) {
-          this.pricing.cheapest4Hours.push(hour);
-        }
-        if (value <= sortedPrices[4].price) {
-          this.pricing.cheapest5Hours.push(hour);
-        }
-        if (value <= sortedPrices[5].price) {
-          this.pricing.cheapest6Hours.push(hour);
-        }
-        if (value <= sortedPrices[6].price) {
-          this.pricing.cheapest7Hours.push(hour);
-        }
-        if (value <= sortedPrices[7].price) {
-          this.pricing.cheapest8Hours.push(hour);
-        }
-        if ((value >= (sortedPrices[23].price * 0.9) || value >= this.pricing.median * this.excessivePriceMargin/100)
-                && !this.pricing.cheapest8Hours.includes(hour)
-        ) {
-          this.pricing.priciestHour.push(hour);
-        }
-      });
-
-    this.platform.log.info(`Cheapest hour(s): ${this.pricing.cheapestHour.join(', ')}`);
-    this.platform.log.info(`4 cheapest hours: ${this.pricing.cheapest4Hours.join(', ')}`);
-    this.platform.log.info(`5 cheapest hours: ${this.pricing.cheapest5Hours.join(', ')}`);
-    this.platform.log.info(`6 cheapest hours: ${this.pricing.cheapest6Hours.join(', ')}`);
-    this.platform.log.info(`7 cheapest hours: ${this.pricing.cheapest7Hours.join(', ')}`);
-    this.platform.log.info(`8 cheapest hours: ${this.pricing.cheapest8Hours.join(', ')}`);
-    this.platform.log.info(`Most expensive hour(s): ${this.pricing.priciestHour.join(', ')}`);
-    this.platform.log.info(`Median price today: ${this.pricing.median} cents`);
-
-    if (this.plotTheChart) {
-      this.fnc.plotTheChart().then().catch((error)=> {
-        this.platform.log.error('An error occurred plotting the chart for today\'s Nordpool data: ', error);
-      });
-    }
-
   }
 
   async getCheapestHoursIn2days() {
