@@ -1,7 +1,7 @@
 {
     "displayName": "Homebridge Nordpool LT, LV, EE, FI",
     "name": "homebridge-nordpool-baltics",
-    "version": "1.0.21",
+    "version": "1.0.22",
     "description": "Plugin exposes virtual accessories (switch, light, presence sensors) and enables HomeKit automation by Nordpool energy market spot price. It supports the following countries: Lithuania, Latvia, Estonia and Finland.",
     "homepage": "https://github.com/msegzda/homebridge-nordpool-baltics",
     "author": {
@@ -42,6 +42,7 @@
         "watch": "npm run build && npm link && nodemon",
         "test": "jest --passWithNoTests && npm run lint:md",
         "build": "rimraf ./dist && tsc",
+        "publish": "npm publish",
         "prepublishOnly": "npm run lint && npm run build"
     },
     "jest": {
