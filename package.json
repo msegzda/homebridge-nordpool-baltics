@@ -64,6 +64,7 @@
         "markdownlint-cli": "^0.39.0",
         "nodemon": "^3.0.3",
         "rimraf": "^3.0.2",
+        "ts-jest": "^29.1.2",
         "ts-node": "^10.9.1",
         "typescript": "^5.3.3"
     },
@@ -74,7 +75,6 @@
         "file-system-cache": "^2.4.4",
         "luxon": "^3.4.4",
         "node-cron": "^3.0.3",
-        "ramda": "^0.29.1",
-        "ts-jest": "^29.1.2"
+        "ramda": "^0.29.1"
     }
 }
