@@ -17,19 +17,5 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm publish
-
-      - name: npm deprecate old versions
-        run: |
-            const execSync = require('child_process').execSync;
-
-            const versionsJSON = execSync('npm view homebridge-nordpool-baltics versions --json');
-            let versions = JSON.parse(versionsJSON);
-            versions.sort();
-
-            versions = versions.slice(0, versions.length - 3);
-
-            for(let i=0; i < versions.length; i++) {
-                execSync(`npm deprecate homebridge-nordpool-baltics@"${versions[i]}" "This version is deprecated, please update to the latest version."`);
-            }
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
