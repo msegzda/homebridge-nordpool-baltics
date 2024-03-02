@@ -8,7 +8,7 @@ import * as asciichart from 'asciichart';
 
 import {
   defaultAreaTimezone, PLATFORM_MANUFACTURER, PLATFORM_MODEL, PLATFORM_SERIAL_NUMBER,
-  Pricing, NordpoolData, SensorType,
+  Pricing, NordpoolData, SensorType, defaultPricesCache, fnc_tomorrowKey, fnc_currentHour,
 } from './settings';
 
 export class Functions {
@@ -16,6 +16,8 @@ export class Functions {
   private decimalPrecision = this.platform.config.decimalPrecision ?? 1;
   private excessivePriceMargin = this.platform.config.excessivePriceMargin ?? 200;
   private plotTheChart:boolean = this.platform.config.plotTheChart ?? false;
+  private dynamicCheapestConsecutiveHours:boolean = this.platform.config.dynamicCheapestConsecutiveHours ?? false;
+  private pricesCache = defaultPricesCache;
 
   constructor(
     private readonly platform: NordpoolPlatform,
@@ -258,4 +260,100 @@ export class Functions {
 
     this.service[accessoryName]!.setCharacteristic(this.platform.Characteristic.OccupancyDetected, characteristic);
   }
+
+  async analyze_and_setServices (currentHour: number) {
+
+    if (this.pricing.today.length === 24) {
+      this.pricing.currently = this.pricing.today[currentHour]['price'];
+    } else {
+      this.platform.log.warn('WARN: Unable to determine current hour Nordpool price because data not available');
+      return;
+    }
+
+    // if new day or cheapest hours not calculated yet
+    if (currentHour === 0 || this.pricing.cheapest4Hours.length === 0) {
+      this.getCheapestHoursToday();
+    }
+
+    if (
+      this.pricing.cheapest5HoursConsec.length === 0
+        || (currentHour === 0 && (!this.dynamicCheapestConsecutiveHours || !this.pricesCache.getSync('5consecutiveUpdated', false)))
+        || (currentHour === 7 && this.dynamicCheapestConsecutiveHours)
+    ) {
+      this.getCheapestConsecutiveHours(5, this.pricing.today).then((retVal) => {
+        this.pricing.cheapest5HoursConsec = retVal;
+        this.setOccupancyByHour(currentHour, 'cheapest5HoursConsec');
+      }).catch((error)=> {
+        this.pricing.cheapest5HoursConsec = []; // make sure its empty in case of error
+        this.platform.log.error('An error occurred calculating cheapest 5 consecutive hours: ', error);
+      });
+    }
+
+    // set current price level on light sensor
+    if (this.service.currently) {
+      this.service.currently.getCharacteristic(this.platform.Characteristic.CurrentAmbientLightLevel)
+        .updateValue(this.pricing.currently >= 0.0001 ? this.pricing.currently : 0.0001);
+    }
+
+    // set price levels on relevant occupancy sensors
+    for (const key of Object.keys(this.pricing)) {
+      if (!/^(cheapest|priciest)/.test(key)) {
+        continue;
+      }
+
+      if (!this.service[key] || !Array.isArray(this.pricing[key])) {
+        continue;
+      }
+
+      this.setOccupancyByHour(currentHour, key);
+    }
+
+    this.platform.log.info(`Hour: ${currentHour}; Price: ${this.pricing.currently} cents`);
+
+    // toggle hourly ticker in 1s ON
+    if (this.service.hourlyTickerSwitch) {
+      setTimeout(() => {
+      this.service.hourlyTickerSwitch!.setCharacteristic(this.platform.Characteristic.On, true);
+      }, 1000);
+    }
+  }
+
+  async getCheapestHoursIn2days() {
+
+    // make sure its not allowed to execute if not enabled on plugin config
+    if (!this.dynamicCheapestConsecutiveHours){
+      return;
+    }
+
+    const tomorrowKey = fnc_tomorrowKey();
+    const currentHour = fnc_currentHour();
+
+    let tomorrow = [] as Array<NordpoolData>; tomorrow = this.pricesCache.getSync(tomorrowKey, []);
+    let twoDaysPricing = [] as Array<NordpoolData>;
+
+    // stop function if not full data
+    if ( this.pricing.today.length !== 24 || tomorrow.length !== 24 ) {
+      return;
+    }
+
+    const remainingHoursToday = Array.from({length: Math.min(24 - currentHour, 24)}, (_, i) => currentHour + i);
+
+    // Check if any of the remaining hours are within the cheapest consecutive hours
+    if( this.pricing.cheapest5HoursConsec.some(hour => remainingHoursToday.includes(hour)) ) {
+      // from now till next day 6AM
+      twoDaysPricing = this.pricing.today.slice(currentHour, 24).concat(tomorrow.slice(0, 7));
+    } else {
+      // do nothing, allow recalculate 0AM
+      this.pricesCache.remove('5consecutiveUpdated');
+      return;
+    }
+
+    this.getCheapestConsecutiveHours(5, twoDaysPricing).then((retVal) => {
+      this.pricing.cheapest5HoursConsec = retVal;
+    }).catch((error)=> {
+      this.platform.log.error('An error occurred calculating cheapest 5 consecutive hours: ', error);
+    });
+
+  }
+
 }
