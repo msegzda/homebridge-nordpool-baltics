@@ -1,4 +1,4 @@
-import { Access, PlatformAccessory } from 'homebridge';
+import { PlatformAccessory } from 'homebridge';
 import { NordpoolPlatform } from './platform';
 
 import { DateTime } from 'luxon';

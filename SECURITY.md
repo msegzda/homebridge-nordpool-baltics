@@ -6,4 +6,4 @@ Up to 3 most recent NPM versions of `homebridge-nordpool-baltics` are supported 
 
 ## Reporting a Vulnerability
 
-Use '[Issues Form](https://github.com/msegzda/homebridge-nordpool-baltics/issues/new)' to report bugs or vulnerability issues. 
+Please use [Github Issues Form](https://github.com/msegzda/homebridge-nordpool-baltics/issues/new) to report bugs or vulnerability issues.
