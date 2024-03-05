@@ -67,16 +67,52 @@
                 "minimum": 50,
                 "maximum": 400
             },
-            "dynamicCheapestConsecutiveHours": {
-                "title": "Dynamic Cheapest Consecutive Hours",
-                "description": "If enabled, 5 cheapest consecutive hours may recalculate using day-ahead pricing. For more details go to <a href='https://github.com/msegzda/homebridge-nordpool-baltics/blob/latest/README.md#cheapest-consecutive-hours-calculation-logic' target='_blank'>plugin README</a>.",
+            "plotTheChart": {
+                "title": "Plot Electricity Price Chart",
+                "description": "If enabled, current day Nordpool prices chart will show up in log at midnight or upon (re)start of the plugin.",
                 "required": false,
                 "default": false,
                 "type": "boolean"
             },
-            "plotTheChart": {
-                "title": "Plot Electricity Price Chart",
-                "description": "If enabled, current day Nordpool prices chart will show up in log at midnight or upon (re)start of the plugin.",
+            "cheapest4Hours": {
+                "required": true,
+                "type": "boolean",
+                "default": true,
+                "title": "Show 'cheapest 4 hours' sensor (Nordpool_cheapest4Hours)"
+            },
+            "cheapest5Hours": {
+                "required": true,
+                "type": "boolean",
+                "default": true,
+                "title": "Show 'cheapest 5 hours' sensor (Nordpool_cheapest5Hours)"
+            },
+            "cheapest6Hours": {
+                "required": true,
+                "type": "boolean",
+                "default": true,
+                "title": "Show 'cheapest 6 hours' sensor (Nordpool_cheapest6Hours)"
+            },
+            "cheapest7Hours": {
+                "required": true,
+                "type": "boolean",
+                "default": true,
+                "title": "Show 'cheapest 7 hours' sensor (Nordpool_cheapest7Hours)"
+            },
+            "cheapest8Hours": {
+                "required": true,
+                "type": "boolean",
+                "default": true,
+                "title": "Show 'cheapest 8 hours' sensor (Nordpool_cheapest8Hours)"
+            },
+            "cheapest5HoursConsec": {
+                "required": true,
+                "type": "boolean",
+                "default": true,
+                "title": "Show 'cheapest CONSECUTIVE 5 hours' sensor (Nordpool_cheapest5HoursConsec)"
+            },
+            "dynamicCheapestConsecutiveHours": {
+                "title": "Dynamic Cheapest Consecutive 5 Hours",
+                "description": "If enabled at 6PM it will try recalculate using day-ahead pricing. For more details go to <a href='https://github.com/msegzda/homebridge-nordpool-baltics/blob/latest/README.md#cheapest-consecutive-hours-calculation-logic' target='_blank'>plugin README</a>.",
                 "required": false,
                 "default": false,
                 "type": "boolean"

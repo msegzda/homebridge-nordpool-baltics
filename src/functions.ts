@@ -64,16 +64,32 @@ export class Functions {
     // init virtual occupancy sensors for price levels
     for (const key of Object.keys(this.service)) {
       if (/^(cheapest|priciest)/.test(key)) {
-        this.service[key] = this.accessory.getService(`Nordpool_${key}`)
+
+        const accessoryService = this.accessory.getService(`Nordpool_${key}`);
+
+        if ( this.platform.config[key] !== undefined && !this.platform.config[key] ) {
+          if ( accessoryService !== undefined ) {
+            this.accessory.removeService(accessoryService);
+            this.platform.log.debug(`Accessory Nordpool_${key} removed according to Plugin Config`);
+          } else {
+            this.platform.log.debug(`Accessory Nordpool_${key} skipped according to Plugin Config`);
+          }
+          continue;
+        }
+
+        this.service[key] = accessoryService
         || this.accessory.addService(this.platform.Service.OccupancySensor, `Nordpool_${key}`, key);
 
         if ( this.service[key] ) {
-        this.service[key]!
-          .getCharacteristic(this.platform.Characteristic.OccupancyDetected)
-          .setValue(this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED);
+            this.service[key]!
+              .getCharacteristic(this.platform.Characteristic.OccupancyDetected)
+              .setValue(this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED);
         }
+
       }
     }
+    // make sure accessories cache on homebridge gets updated
+    this.platform.api.updatePlatformAccessories([this.accessory]);
   }
 
   async checkSystemTimezone() {
@@ -193,11 +209,14 @@ export class Functions {
       });
 
     this.platform.log.info(`Cheapest hour(s): ${this.pricing.cheapestHour.join(', ')}`);
-    this.platform.log.info(`4 cheapest hours: ${this.pricing.cheapest4Hours.join(', ')}`);
-    this.platform.log.info(`5 cheapest hours: ${this.pricing.cheapest5Hours.join(', ')}`);
-    this.platform.log.info(`6 cheapest hours: ${this.pricing.cheapest6Hours.join(', ')}`);
-    this.platform.log.info(`7 cheapest hours: ${this.pricing.cheapest7Hours.join(', ')}`);
-    this.platform.log.info(`8 cheapest hours: ${this.pricing.cheapest8Hours.join(', ')}`);
+
+    for (let i=4; i<=8; i++) {
+      const key = `cheapest${i}Hours`;
+      if (this.platform.config[key] !== undefined && this.platform.config[key]) {
+        this.platform.log.info(`${i} cheapest hours: ${this.pricing[key].join(', ')}`);
+      }
+    }
+
     this.platform.log.info(`Most expensive hour(s): ${this.pricing.priciestHour.join(', ')}`);
     this.platform.log.info(`Median price today: ${this.pricing.median} cents`);
 
@@ -214,6 +233,12 @@ export class Functions {
         startHour: number;
         total: number;
     }
+
+    // if not required on plugin config, just return empty
+    if (this.platform.config['cheapest5HoursConsec'] !== undefined && !this.platform.config['cheapest5HoursConsec']) {
+      return [];
+    }
+
     const hourSequences: HourSequence[] = [];
 
     for(let i = 0; i <= pricesSequence.length - numHours; i++) {
@@ -257,8 +282,11 @@ export class Functions {
     if (this.pricing[accessoryName].includes(currentHour)) {
       characteristic = this.platform.Characteristic.OccupancyDetected.OCCUPANCY_DETECTED;
     }
+    const accessoryService = this.service[accessoryName];
 
-    this.service[accessoryName]!.setCharacteristic(this.platform.Characteristic.OccupancyDetected, characteristic);
+    if ( accessoryService !== undefined && accessoryService !== null) {
+      accessoryService.setCharacteristic(this.platform.Characteristic.OccupancyDetected, characteristic);
+    }
   }
 
   async analyze_and_setServices (currentHour: number) {
