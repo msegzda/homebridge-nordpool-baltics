@@ -33,7 +33,7 @@
                     },
                     {
                         "title": "Finland",
-                        "enum": ["Fi"]
+                        "enum": ["FI"]
                     }
                 ]
             },
@@ -41,7 +41,7 @@
                 "title": "Price Decimal Precision",
                 "description": "This parameter is used for hourly price and median calculations.",
                 "type": "integer",
-                "required": false,
+                "required": true,
                 "default": 1,
                 "oneOf": [
                     {
@@ -57,22 +57,6 @@
                         "enum": [2]
                     }
                 ]
-            },
-            "excessivePriceMargin": {
-                "title": "Excessive Price Margin Above Median",
-                "description": "Percentage value used as margin to calculate highest price(s) of the day. Default 200 (percent).",
-                "required": false,
-                "default": 200,
-                "type": "integer",
-                "minimum": 50,
-                "maximum": 400
-            },
-            "plotTheChart": {
-                "title": "Plot Electricity Price Chart",
-                "description": "If enabled, current day Nordpool prices chart will show up in log at midnight or upon (re)start of the plugin.",
-                "required": false,
-                "default": false,
-                "type": "boolean"
             },
             "cheapest4Hours": {
                 "required": true,
@@ -113,6 +97,25 @@
             "dynamicCheapestConsecutiveHours": {
                 "title": "Dynamic Cheapest Consecutive 5 Hours",
                 "description": "If enabled at 6PM it will try recalculate using day-ahead pricing. For more details go to <a href='https://github.com/msegzda/homebridge-nordpool-baltics/blob/latest/README.md#cheapest-consecutive-hours-calculation-logic' target='_blank'>plugin README</a>.",
+                "required": false,
+                "default": false,
+                "type": "boolean",
+                "condition": {
+                    "functionBody": "return model.cheapest5HoursConsec === true;"
+                }
+            },
+            "excessivePriceMargin": {
+                "title": "Excessive Price Margin Above Median",
+                "description": "Percentage value used as margin to calculate highest price(s) of the day. Default 200 (percent).",
+                "required": false,
+                "default": 200,
+                "type": "integer",
+                "minimum": 50,
+                "maximum": 400
+            },
+            "plotTheChart": {
+                "title": "Plot Electricity Price Chart",
+                "description": "If enabled, current day Nordpool prices chart will show up in log at midnight or upon (re)start of the plugin.",
                 "required": false,
                 "default": false,
                 "type": "boolean"

@@ -1,7 +1,7 @@
 {
     "displayName": "Homebridge Nordpool LT, LV, EE, FI",
     "name": "homebridge-nordpool-baltics",
-    "version": "1.1.3",
+    "version": "1.1.4",
     "description": "Plugin exposes virtual accessories (switch, light, presence sensors) and enables HomeKit automation by Nordpool electricity pricing in supported countries.",
     "homepage": "https://github.com/msegzda/homebridge-nordpool-baltics",
     "author": {
