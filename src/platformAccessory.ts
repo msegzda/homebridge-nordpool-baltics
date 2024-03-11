@@ -59,6 +59,22 @@ export class NordpoolPlatformAccessory {
       }
     }
 
+    const areaCache = this.pricesCache.getSync('area');
+    if (this.platform.config.area !== undefined && areaCache !== this.platform.config.area) {
+      try {
+        await this.pricesCache.remove(todayKey);
+        await this.pricesCache.remove(tomorrowKey);
+      } catch (error) {
+        this.platform.log.error(`ERR: failed clearing pricesCache: ${JSON.stringify(error)}`);
+      } finally {
+        this.platform.log.warn(
+          `Configured Nordpool area changed from ${areaCache} to ${this.platform.config.area}`,
+        );
+        this.pricesCache.set('area', this.platform.config.area);
+      }
+    }
+
+
     this.pricing.today = this.pricesCache.getSync(todayKey, []);
     if (this.pricing.today.length === 0
         || (currentHour >= 18 && !this.pricesCache.getSync(tomorrowKey))
@@ -83,8 +99,9 @@ export class NordpoolPlatformAccessory {
             if ( tomorrowResults.length===24 ) {
               this.pricesCache.set(tomorrowKey, tomorrowResults);
 
-              // keep decimalPrecision cache fresh so it does not ttl/expire
+              // keep decimalPrecision and area cache fresh so it does not ttl/expire
               this.pricesCache.set('decimalPrecision', this.decimalPrecision);
+              this.pricesCache.set('area', this.platform.config.area);
 
               this.platform.log.debug(`OK: pulled Nordpool prices in ${this.platform.config.area} area for TOMORROW (${tomorrowKey})`);
               this.platform.log.debug(JSON.stringify(tomorrowResults.map(({ hour, price }) => ({ hour, price }))));
