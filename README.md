@@ -65,7 +65,7 @@ Motion sensor `Nordpool_cheapest5HoursConsec` calculation logic is the following
 
 ### If 'Dynamic Cheapest Consecutive Hours' is **Enabled** in Plugin Config ###
 
-- **At 18:00 (6PM)**: If the cheapest 5 consecutive hours are calculated to occur later in the evening, the computation includes 0AM-6AM period from the next day. This could potentially *shift* the 5-hour period of cheapest price from the evening to the next day's early morning, aiming for maximum cost efficiency.
+- **At 18:00 (6PM)**: If the cheapest 5 consecutive hours occurs later in the evening, the computation includes 0AM-6AM period from the next day. This could potentially *shift* the 5-hour period of cheapest price from the evening to the next day's early morning, aiming for maximum cost efficiency.
 
 - **At 00:00 (midnight)**: If the 6PM run did not result in a *shift*, it will recalculate as normal using the pricing information of the new day.
 

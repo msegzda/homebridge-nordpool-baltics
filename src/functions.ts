@@ -239,15 +239,20 @@ export class Functions {
       return [];
     }
 
-    const hourSequences: HourSequence[] = [];
+    // try cached from 2days calculation
+    let retVal = this.pricesCache.getSync('5consecutiveUpdated', []);
 
-    for(let i = 0; i <= pricesSequence.length - numHours; i++) {
-      const totalSum = pricesSequence.slice(i, i + numHours).reduce((total, priceObj) => total + priceObj.price, 0);
-      hourSequences.push({ startHour: i, total: totalSum });
+    if (retVal.length === 0) {
+      const hourSequences: HourSequence[] = [];
+
+      for(let i = 0; i <= pricesSequence.length - numHours; i++) {
+        const totalSum = pricesSequence.slice(i, i + numHours).reduce((total, priceObj) => total + priceObj.price, 0);
+        hourSequences.push({ startHour: i, total: totalSum });
+      }
+
+      const cheapestHours = hourSequences.sort((a, b) => a.total - b.total)[0];
+      retVal = Array.from({length: numHours}, (_, i) => pricesSequence[cheapestHours.startHour + i].hour);
     }
-
-    const cheapestHours = hourSequences.sort((a, b) => a.total - b.total)[0];
-    const retVal = Array.from({length: numHours}, (_, i) => pricesSequence[cheapestHours.startHour + i].hour);
 
     this.platform.log.info(
       `Consecutive ${numHours} cheapest hours: ${retVal.join(', ')}`,
@@ -305,7 +310,7 @@ export class Functions {
 
     if (
       this.pricing.cheapest5HoursConsec.length === 0
-        || (currentHour === 0 && (!this.dynamicCheapestConsecutiveHours || !this.pricesCache.getSync('5consecutiveUpdated', false)))
+        || currentHour === 0
         || (currentHour === 7 && this.dynamicCheapestConsecutiveHours)
     ) {
       this.getCheapestConsecutiveHours(5, this.pricing.today).then((retVal) => {
@@ -378,10 +383,23 @@ export class Functions {
 
     this.getCheapestConsecutiveHours(5, twoDaysPricing).then((retVal) => {
       this.pricing.cheapest5HoursConsec = retVal;
+      // ttl in seconds till next morning 7am
+      const ttl = this.ttlSecondsTill_7AM();
+      this.pricesCache.set('5consecutiveUpdated', retVal, ttl);
     }).catch((error)=> {
       this.platform.log.error('An error occurred calculating cheapest 5 consecutive hours: ', error);
     });
+  }
 
+  ttlSecondsTill_7AM() {
+    const now = DateTime.local();
+    let next7am = now.startOf('day').plus({ hours: 6, minutes: 59 });
+
+    if(now >= next7am) {
+      next7am = next7am.plus({ days: 1 });
+    }
+
+    return next7am.diff(now, 'seconds').seconds;
   }
 
 }
