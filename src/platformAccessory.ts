@@ -49,6 +49,7 @@ export class NordpoolPlatformAccessory {
       try {
         await this.pricesCache.remove(todayKey);
         await this.pricesCache.remove(tomorrowKey);
+        await this.pricesCache.remove('5consecutiveUpdated');
       } catch (error) {
         this.platform.log.error(`ERR: failed clearing pricesCache: ${JSON.stringify(error)}`);
       } finally {
@@ -64,6 +65,7 @@ export class NordpoolPlatformAccessory {
       try {
         await this.pricesCache.remove(todayKey);
         await this.pricesCache.remove(tomorrowKey);
+        await this.pricesCache.remove('5consecutiveUpdated');
       } catch (error) {
         this.platform.log.error(`ERR: failed clearing pricesCache: ${JSON.stringify(error)}`);
       } finally {
@@ -73,7 +75,6 @@ export class NordpoolPlatformAccessory {
         this.pricesCache.set('area', this.platform.config.area);
       }
     }
-
 
     this.pricing.today = this.pricesCache.getSync(todayKey, []);
     if (this.pricing.today.length === 0
@@ -105,9 +106,13 @@ export class NordpoolPlatformAccessory {
 
               this.platform.log.debug(`OK: pulled Nordpool prices in ${this.platform.config.area} area for TOMORROW (${tomorrowKey})`);
               this.platform.log.debug(JSON.stringify(tomorrowResults.map(({ hour, price }) => ({ hour, price }))));
+
               if (this.dynamicCheapestConsecutiveHours) {
-                this.fnc.getCheapestHoursIn2days();
+                setTimeout(() => {
+                  this.fnc.getCheapestHoursIn2days();
+                }, 2000);
               }
+
             }
           } else {
             this.platform.log.warn('WARN: API returned no or abnormal results for todays\'s Nordpool prices data. Will retry in 1 hour');
