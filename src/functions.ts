@@ -383,6 +383,7 @@ export class Functions {
 
     this.getCheapestConsecutiveHours(5, twoDaysPricing).then((retVal) => {
       this.pricing.cheapest5HoursConsec = retVal;
+      this.setOccupancyByHour(currentHour, 'cheapest5HoursConsec');
       // ttl in seconds till next morning 7am
       const ttl = this.ttlSecondsTill_7AM();
       this.pricesCache.set('5consecutiveUpdated', retVal, ttl);
