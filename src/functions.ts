@@ -239,10 +239,10 @@ export class Functions {
       return [];
     }
 
-    // try cached from 2days calculation
+    // try cached from 2-days calculation - if not avail then calculate fresh
     let retVal = this.pricesCache.getSync('5consecutiveUpdated', []);
 
-    if (retVal.length === 0) {
+    if (retVal === undefined || retVal.length === 0) {
       const hourSequences: HourSequence[] = [];
 
       for(let i = 0; i <= pricesSequence.length - numHours; i++) {
