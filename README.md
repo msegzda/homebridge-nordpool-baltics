@@ -44,7 +44,7 @@ It exposes a few 'virtual' accessories that facilitate versatile HomeKit automat
     - Current hour price is within 10% difference from most expensive hour;
     - Current hour price exceeds 'Excessive Price Margin Above Median' value (default 200%).
 
-1. `Nordpool_currentHour` (optional on Plugin Config): Temperature sensor (possible values 0-24) denoting current hour of the day (24h format). Eliminates 'current hour' scripting needed on HomeKit rules.
+1. `Nordpool_currentHour` (optional on Plugin Config): Temperature sensor (possible values 0-23) denoting current hour of the day (24h format). Eliminates 'current hour' scripting needed on HomeKit rules.
 
 ## HomeKit Automation Examples ##
 
