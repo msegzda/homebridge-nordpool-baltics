@@ -92,10 +92,10 @@
                 "required": true,
                 "type": "boolean",
                 "default": true,
-                "title": "Show 'cheapest CONSECUTIVE 5 hours' sensor (Nordpool_cheapest5HoursConsec)"
+                "title": "Show 'cheapest 5 consecutive hours' sensor (Nordpool_cheapest5HoursConsec)"
             },
             "dynamicCheapestConsecutiveHours": {
-                "title": "Dynamic Cheapest Consecutive 5 Hours",
+                "title": "Dynamic Cheapest 5 Consecutive Hours",
                 "description": "If enabled, at 6PM it will recalculate using day-ahead pricing. For more details go to <a href='https://github.com/msegzda/homebridge-nordpool-baltics/blob/latest/README.md#cheapest-consecutive-hours-calculation-logic' target='_blank'>plugin README</a>.",
                 "required": false,
                 "default": false,
@@ -103,6 +103,12 @@
                 "condition": {
                     "functionBody": "return model.cheapest5HoursConsec === true;"
                 }
+            },
+            "currentHour": {
+                "required": false,
+                "type": "boolean",
+                "default": false,
+                "title": "Show 'current hour' sensor (Nordpool_currentHour)"
             },
             "excessivePriceMargin": {
                 "title": "Excessive Price Margin Above Median",

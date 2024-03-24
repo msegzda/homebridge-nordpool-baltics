@@ -31,6 +31,7 @@ export interface NordpoolData {
 export interface Pricing {
     today: NordpoolData[];
     currently: number;
+    currentHour: number;
     cheapestHour: number[];
     cheapest4Hours: number[];
     cheapest5Hours: number[];
@@ -47,6 +48,7 @@ export interface Pricing {
 export const defaultPricing: Pricing = {
   today: [],
   currently: 0.0001,
+  currentHour: 0,
   cheapestHour: [],
   cheapest4Hours: [],
   cheapest5Hours: [],

@@ -47,6 +47,23 @@ export class Functions {
     this.service.hourlyTickerSwitch = this.accessory.getService('Nordpool_hourlyTickerSwitch') || this.accessory.addService(
       this.platform.Service.Switch, 'Nordpool_hourlyTickerSwitch', 'hourlyTickerSwitch');
 
+    // current hour as temperature sensor
+    if ( this.platform.config['currentHour'] !== undefined && this.platform.config['currentHour'] ) {
+      this.service.currentHour = this.accessory.getService('Nordpool_currentHour') || this.accessory.addService(
+        this.platform.Service.TemperatureSensor, 'Nordpool_currentHour', 'currentHour');
+
+      if (this.service.currentHour) {
+        this.service.currentHour.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
+          .updateValue(fnc_currentHour());
+      }
+    } else {
+      const currentHourService = this.accessory.getService('Nordpool_currentHour');
+      if (currentHourService !== undefined) {
+        this.accessory.removeService(currentHourService);
+        this.platform.log.debug('Accessory Nordpool_currentHour removed according to Plugin Config');
+      }
+    }
+
     // turn OFF hourly ticker if its turned on by schedule or manually
     if (this.service.hourlyTickerSwitch) {
       this.service.hourlyTickerSwitch.getCharacteristic(this.platform.Characteristic.On)
@@ -301,6 +318,12 @@ export class Functions {
     } else {
       this.platform.log.warn('WARN: Unable to determine current hour Nordpool price because data not available');
       return;
+    }
+
+    this.pricing.currentHour = currentHour;
+    if (this.service.currentHour) {
+      this.service.currentHour.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
+        .updateValue(currentHour);
     }
 
     // if new day or cheapest hours not calculated yet
