@@ -8,6 +8,12 @@
         "name": "Mantas Segzda",
         "email": "msegzda+nordpool@gmail.com"
     },
+    "funding": [
+        {
+            "type": "paypal",
+            "url": "https://www.paypal.me/msegzda"
+        }
+    ],
     "license": "MIT",
     "repository": {
         "type": "git",
