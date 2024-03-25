@@ -1,4 +1,5 @@
-import { Service } from 'homebridge';
+import { Service, API } from 'homebridge';
+import * as Path from 'path';
 import { DateTime } from 'luxon';
 import { Cache } from 'file-system-cache';
 
@@ -75,7 +76,11 @@ export const defaultService: SensorType = {
   hourlyTickerSwitch: null,
 };
 
-export const defaultPricesCache = new Cache({ ns: 'homebridge-nordpool-baltics', ttl: 172800 });
+export function defaultPricesCache(api: API) {
+  const storagePath = api.user.storagePath();
+  const cacheDirectory = Path.join(storagePath, '.cache');
+  return new Cache({ basePath: cacheDirectory, ns: 'homebridge-nordpool-baltics', ttl: 172800 });
+}
 
 // same timezone applies to all Nordpool zones: LT, LV, EE, FI
 export const defaultAreaTimezone = 'Europe/Vilnius';

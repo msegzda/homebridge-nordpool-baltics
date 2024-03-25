@@ -1,4 +1,4 @@
-import { PlatformAccessory } from 'homebridge';
+import { PlatformAccessory, API } from 'homebridge';
 import { NordpoolPlatform } from './platform';
 
 import {
@@ -15,12 +15,13 @@ export class NordpoolPlatformAccessory {
   private dynamicCheapestConsecutiveHours:boolean = this.platform.config.dynamicCheapestConsecutiveHours ?? false;
   private pricing = defaultPricing;
   private service = defaultService;
-  private pricesCache = defaultPricesCache;
-  private fnc = new Functions(this.platform, this.accessory, this.pricing, this.service);
+  private pricesCache = defaultPricesCache(this.api);
+  private fnc = new Functions(this.platform, this.accessory, this.pricing, this.service, this.api);
 
   constructor(
     private readonly platform: NordpoolPlatform,
     private readonly accessory: PlatformAccessory,
+    private readonly api: API,
   ) {
 
     this.fnc.initAccessories()

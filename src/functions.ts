@@ -1,4 +1,4 @@
-import { PlatformAccessory } from 'homebridge';
+import { PlatformAccessory, API } from 'homebridge';
 import { NordpoolPlatform } from './platform';
 
 import { DateTime } from 'luxon';
@@ -17,13 +17,14 @@ export class Functions {
   private excessivePriceMargin = this.platform.config.excessivePriceMargin ?? 200;
   private plotTheChart:boolean = this.platform.config.plotTheChart ?? false;
   private dynamicCheapestConsecutiveHours:boolean = this.platform.config.dynamicCheapestConsecutiveHours ?? false;
-  private pricesCache = defaultPricesCache;
+  private pricesCache = defaultPricesCache(this.api);
 
   constructor(
     private readonly platform: NordpoolPlatform,
     private readonly accessory: PlatformAccessory,
     private readonly pricing: Pricing,
     private readonly service: SensorType,
+    private readonly api: API,
   ) {}
 
   async initAccessories() {
