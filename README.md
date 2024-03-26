@@ -1,6 +1,6 @@
 # homebridge-nordpool-baltics #
 
-[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
+[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/verified/blob/latest/verified-plugins.json)
 [![NPM Version](https://img.shields.io/npm/v/homebridge-nordpool-baltics)](https://www.npmjs.com/package/homebridge-nordpool-baltics/v/latest)
 ![NPM Build Status](https://img.shields.io/github/actions/workflow/status/msegzda/homebridge-nordpool-baltics/npm-publish.yml)
 [![NPM Downloads](https://img.shields.io/npm/dw/homebridge-nordpool-baltics)](https://www.npmjs.com/package/homebridge-nordpool-baltics?activeTab=versions)
@@ -23,11 +23,11 @@ Currently, this plugin supports the following Nordpool electricity market areas:
 
 ## How To Install ##
 
-First, complete the [Homebridge setup](https://homebridge.io/how-to-install-homebridge). Afterwards, the most convenient way to install the `homebridge-nordpool-baltics` plugin is by using the Homebridge Plugins Manager.
+First, complete the [Homebridge setup](https://homebridge.io/how-to-install-homebridge). Next, install the `homebridge-nordpool-baltics` plugin by using the Homebridge Plugins Manager.
 
 ## Available Accessories ##
 
-It exposes a few 'virtual' accessories that facilitate versatile HomeKit automation based on Nordpool price levels. These include:
+Plugin exposes the below described 'virtual' accessories:
 
 1. `Nordpool_hourlyTickerSwitch`: A switch that cycles ON and OFF every hour. Use it in 'An Accessory is Controlled' event on HomeKit automation. Then check for desired price/levels further on automation logic;
 
