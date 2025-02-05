@@ -145,7 +145,7 @@
             },
             "minPriciestMargin": {
                 "title": "Minimum Price Threshold for Priciest Hour(s)",
-                "description": "Hours below this price will not be included into 'priciest hours(s)' calculation. Default 0 cents.",
+                "description": "Hours below this price will not be included into 'priciest hours(s)' calculation. Default 0 (cents).",
                 "required": false,
                 "default": 0,
                 "minimum": 0,

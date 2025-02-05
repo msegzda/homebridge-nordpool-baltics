@@ -121,27 +121,6 @@ export function defaultPricesCache(api: API, log: Logging) {
     const filePath = Path.join(cacheDirectory, file);
 
     try {
-      // Attempt to make file writable if needed
-      fs.accessSync(filePath, fs.constants.W_OK);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        log.warn(`File not writable, attempting to change permissions for: ${filePath}`);
-        try {
-          fs.chmodSync(filePath, 0o666); // Best-effort for UNIX-like systems
-          log.debug(`OK: Permissions changed to 0666 for: ${filePath}`);
-        } catch (chmodError: unknown) {
-          if (chmodError instanceof Error) {
-            log.warn(`Failed to change permissions for file: ${filePath}. Error: ${chmodError.message}`);
-          } else {
-            log.warn(`Failed to change permissions for file: ${filePath}. Unknown error`);
-          }
-        }
-      } else {
-        log.warn(`File not writable, unknown error while checking permissions for: ${filePath}`);
-      }
-    }
-
-    try {
       const stats = fs.statSync(filePath);
       const fileAge = now - stats.mtimeMs;
 
