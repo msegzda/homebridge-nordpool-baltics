@@ -147,12 +147,13 @@ export class Functions {
     }
 
     const today = DateTime.local();
+    const todayKey = fnc_todayKey(config);
     if (today.month < 3 || today.month > 9) {
       this.platform.log.warn('Solar power plant override applies in March-September months only.');
+      this.pricesCache.set(`solarOverrideApplied_${todayKey}`, true);
       return;
     }
 
-    const todayKey = fnc_todayKey(config);
     if ( !force && this.pricesCache.getSync(`solarOverrideApplied_${todayKey}`) ) {
       return;
     }
