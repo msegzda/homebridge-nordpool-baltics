@@ -5,6 +5,6 @@
     },
     "editor.rulers": [140],
     "eslint.enable": true,
-    "cSpell.words": ["asciichart", "baltics", "Consec", "Elering", "homekit", "luxon", "npmjs", "postpublish", "recalc", "suncalc"],
+    "cSpell.words": ["asciichart", "baltics", "Consec", "Elering", "homekit", "luxon", "npmjs", "postpublish", "recalc", "spothinta", "suncalc"],
     "cSpell.ignorePaths": ["deprecate-old-versions.mjs", "package-lock.json", "node_modules", "vscode-extension", ".git/objects", ".vscode", ".vscode-insiders"]
 }

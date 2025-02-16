@@ -1,6 +1,7 @@
 import { PlatformAccessory, API, PlatformConfig, Logging } from 'homebridge';
 import { NordpoolPlatform } from './platform';
 import { eleringEE_getNordpoolData } from './funcs_Elering';
+import { spothinta_getNordpoolData } from './funcs_SpotHinta';
 import { fnc_todayKey } from './settings';
 
 import { DateTime } from 'luxon';
@@ -55,7 +56,7 @@ export class Functions {
 
       if (this.service.currentHour) {
         this.service.currentHour.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
-          .updateValue(fnc_currentHour());
+          .updateValue(fnc_currentHour(this.platform.config));
       }
     } else {
       const currentHourService = this.accessory.getService('Nordpool_currentHour');
@@ -111,18 +112,25 @@ export class Functions {
   }
 
   async pullNordpoolData() {
-    if (this.platform.config.area.match(/^(LT|LV|EE|FI)$/) ) {
+    if (this.platform.config.area.match(/^(LT|LV|EE|FI)$/)) {
       return eleringEE_getNordpoolData(this.platform.log, this.platform.config);
+    } else if (this.platform.config.area.match(/^(SE1|SE2|SE3|SE4|DK1|DK2|NO1|NO2|NO3|NO4|NO5)$/)) {
+      return spothinta_getNordpoolData(this.platform.log, this.platform.config);
+    } else {
+      this.platform.log.error(`ERR: Unsupported Nordpool area: ${this.platform.config.area}`);
+      return null;
     }
   }
 
   async checkSystemTimezone() {
     const systemTimezone = DateTime.local().toFormat('ZZ');
-    const preferredTimezone = DateTime.local().setZone(defaultAreaTimezone).toFormat('ZZ');
+    const preferredTimezone = DateTime.local().setZone(
+      defaultAreaTimezone(this.platform.config),
+    ).toFormat('ZZ');
 
     if (systemTimezone !== preferredTimezone) {
       this.platform.log.warn(
-        `WARN: System timezone ${systemTimezone} DOES NOT match with ${this.platform.config.area} area timezone ${preferredTimezone}.`
+        `WARN: System timezone ${systemTimezone} DOES NOT match with ${this.platform.config.area} area timezone ${preferredTimezone}. `
         + 'This may result in incorrect time-to-price coding. If possible, please update your system time setting to match timezone of '
         + 'your specified Nordpool area.',
       );
@@ -144,7 +152,7 @@ export class Functions {
       return;
     }
 
-    const todayKey = fnc_todayKey();
+    const todayKey = fnc_todayKey(config);
     if ( !force && this.pricesCache.getSync(`solarOverrideApplied_${todayKey}`) ) {
       return;
     }
@@ -282,6 +290,11 @@ export class Functions {
       return [];
     }
 
+    if (pricesSequence.length < numHours) {
+      this.platform.log.error(`Insufficient price data to calculate ${numHours} consecutive hours.`);
+      return [];
+    }
+
     // try cached from 2-days calculation - if not avail then calculate fresh
     let retVal = this.pricesCache.getSync('5consecutiveUpdated', []);
 
@@ -404,8 +417,8 @@ export class Functions {
       return;
     }
 
-    const tomorrowKey = fnc_tomorrowKey();
-    const currentHour = fnc_currentHour();
+    const tomorrowKey = fnc_tomorrowKey(this.platform.config);
+    const currentHour = fnc_currentHour(this.platform.config);
 
     let tomorrow = [] as Array<NordpoolData>; tomorrow = this.pricesCache.getSync(tomorrowKey, []);
     let twoDaysPricing = [] as Array<NordpoolData>;

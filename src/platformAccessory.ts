@@ -38,9 +38,9 @@ export class NordpoolPlatformAccessory {
   }
 
   async getPrices() {
-    const todayKey = fnc_todayKey();
-    const tomorrowKey = fnc_tomorrowKey();
-    const currentHour = fnc_currentHour();
+    const todayKey = fnc_todayKey(this.platform.config);
+    const tomorrowKey = fnc_tomorrowKey(this.platform.config);
+    const currentHour = fnc_currentHour(this.platform.config);
 
     // did precision config change?
     // if changed: clear cache and reload the data from Nordpool prices provider

@@ -102,6 +102,7 @@ export class NordpoolPlatform implements DynamicPlatformPlugin {
       if (!this.discoveredCacheUUIDs.includes(uuid)) {
         this.log.info('Removing existing accessory from cache:', accessory.displayName);
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        accessory.services.forEach(service => accessory.removeService(service));
       }
     }
   }

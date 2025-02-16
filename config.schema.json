@@ -19,22 +19,21 @@
                 "required": true,
                 "default": "LT",
                 "oneOf": [
-                    {
-                        "title": "Lithuania",
-                        "enum": ["LT"]
-                    },
-                    {
-                        "title": "Latvia",
-                        "enum": ["LV"]
-                    },
-                    {
-                        "title": "Estonia",
-                        "enum": ["EE"]
-                    },
-                    {
-                        "title": "Finland",
-                        "enum": ["FI"]
-                    }
+                    { "title": "Lithuania", "enum": ["LT"] },
+                    { "title": "Latvia", "enum": ["LV"] },
+                    { "title": "Estonia", "enum": ["EE"] },
+                    { "title": "Finland", "enum": ["FI"] },
+                    { "title": "Sweden SE1", "enum": ["SE1"] },
+                    { "title": "Sweden SE2", "enum": ["SE2"] },
+                    { "title": "Sweden SE3", "enum": ["SE3"] },
+                    { "title": "Sweden SE4", "enum": ["SE4"] },
+                    { "title": "Denmark DK1", "enum": ["DK1"] },
+                    { "title": "Denmark DK2", "enum": ["DK2"] },
+                    { "title": "Norway NO1", "enum": ["NO1"] },
+                    { "title": "Norway NO2", "enum": ["NO2"] },
+                    { "title": "Norway NO3", "enum": ["NO3"] },
+                    { "title": "Norway NO4", "enum": ["NO4"] },
+                    { "title": "Norway NO5", "enum": ["NO5"] }
                 ]
             },
             "decimalPrecision": {
