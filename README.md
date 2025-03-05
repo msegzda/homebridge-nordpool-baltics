@@ -81,7 +81,7 @@ Motion sensor `Nordpool_cheapest5HoursConsec` calculation logic is the following
 
 If you own solar power plant and it covers all of your household needs during specific daytime hours in month of June then configure the plugin accordingly.
 
-Configure your solar plant latitude ([locator here](https://www.latlong.net/)). Then plugin will apply automatic calculation of best solar yield hours in the months of March-September (inclusive). During best solar yield hours Nordpool price is overridden to 0.
+Enable relevant checkbox and configure your solar plant latitude ([locator here](https://www.latlong.net/)). Then plugin will automatically calculate best solar yield hours in the months of March-September (inclusive). During best solar yield hours Nordpool price is overridden to 0.
 
 ## Important Remark About Timezones ##
 
