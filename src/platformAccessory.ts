@@ -83,10 +83,15 @@ export class NordpoolPlatformAccessory {
       this.fnc.pullNordpoolData()
         .then((results) => {
           if (results) {
-            const todayResults = results.filter(result => result.day === todayKey);
-            const tomorrowResults = results.filter(result => result.day === tomorrowKey);
+            let todayResults = results.filter(result => result.day === todayKey);
+            let tomorrowResults = results.filter(result => result.day === tomorrowKey);
 
-            if (todayResults.length === 25 || todayResults.length === 24 || todayResults.length === 23 ) {
+            if (todayResults.length === 23) {
+              // DST switch to summer time
+              todayResults = this.fnc.fillMissingHours(todayResults, todayKey);
+            }
+
+            if (todayResults.length === 25 || todayResults.length === 24) {
               this.pricesCache.set(todayKey, todayResults);
               pricing.today = todayResults;
               this.pricesCache.setSync(`solarOverrideApplied_${todayKey}`, false);
@@ -98,7 +103,12 @@ export class NordpoolPlatformAccessory {
               this.platform.log.warn(`Raw response: ${JSON.stringify(todayResults)}`);
             }
 
-            if ( tomorrowResults.length === 24 || tomorrowResults.length === 23) {
+            if (tomorrowResults.length === 23) {
+              // DST switch to summer time
+              tomorrowResults = this.fnc.fillMissingHours(tomorrowResults, tomorrowKey);
+            }
+
+            if ( tomorrowResults.length === 24 ) {
               this.pricesCache.set(tomorrowKey, tomorrowResults);
 
               // keep decimalPrecision and area cache fresh so it does not ttl/expire

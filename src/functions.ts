@@ -112,12 +112,20 @@ export class Functions {
   }
 
   async pullNordpoolData() {
-    if (this.platform.config.area.match(/^(LT|LV|EE|FI)$/)) {
-      return eleringEE_getNordpoolData(this.platform.log, this.platform.config);
-    } else if (this.platform.config.area.match(/^(SE1|SE2|SE3|SE4|DK1|DK2|NO1|NO2|NO3|NO4|NO5)$/)) {
-      return spothinta_getNordpoolData(this.platform.log, this.platform.config);
-    } else {
-      this.platform.log.error(`ERR: Unsupported Nordpool area: ${this.platform.config.area}`);
+    try {
+      const rawData = this.platform.config.area.match(/^(LT|LV|EE|FI)$/)
+        ? await eleringEE_getNordpoolData(this.platform.log, this.platform.config)
+        : await spothinta_getNordpoolData(this.platform.log, this.platform.config);
+
+      if (!rawData) {
+        this.platform.log.warn(`ERR: No response from API for ${this.platform.config.area} area`);
+        return null;
+      }
+
+      return rawData;
+
+    } catch (error) {
+      this.platform.log.error('API Error:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -464,4 +472,41 @@ export class Functions {
     return next7am.diff(now, 'seconds').seconds;
   }
 
+  fillMissingHours(data: NordpoolData[], dayKey: string): NordpoolData[] {
+    // If we have all expected hours, return as-is
+    if (data.length >= 24) {
+      return data;
+    }
+
+    // Make a copy to avoid modifying the original
+    const filledData = [...data];
+
+    // Sort by hour to ensure proper sequence
+    filledData.sort((a, b) => a.hour - b.hour);
+
+    // Find the missing hour by looking for gaps in the sequence
+    for (let i = 0; i < filledData.length - 1; i++) {
+      if (filledData[i + 1].hour !== filledData[i].hour + 1) {
+        const missingHour = filledData[i].hour + 1;
+        const previousHour = filledData[i];
+
+        // Clone the previous hour's data for the missing hour
+        const clonedHour = {
+          ...previousHour,
+          hour: missingHour,
+          day: dayKey,
+        };
+
+        filledData.push(clonedHour);
+        filledData.sort((a, b) => a.hour - b.hour);
+
+        this.platform.log.warn(`WARN: Added missing hour ${missingHour} by duplicating hour ${previousHour.hour} data`);
+
+        // Since we only expect to be missing one hour, we can break after fixing it
+        break;
+      }
+    }
+
+    return filledData;
+  }
 }
