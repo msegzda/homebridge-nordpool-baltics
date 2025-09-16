@@ -42,9 +42,15 @@ export class NordpoolPlatformAccessory {
     const tomorrowKey = fnc_tomorrowKey(this.platform.config);
     const currentHour = fnc_currentHour(this.platform.config);
 
+    this.platform.log.debug(`Cache stats: ${JSON.stringify({
+      todayExists: this.pricesCache.getSync(todayKey) !== undefined,
+      tomorrowExists: this.pricesCache.getSync(tomorrowKey) !== undefined,
+      cacheDir: this.pricesCache.basePath,
+    })}`);
+
     // did precision config change?
     // if changed: clear cache and reload the data from Nordpool prices provider
-    const decimalPrecisionCache = this.pricesCache.getSync('decimalPrecision');
+    const decimalPrecisionCache = await this.pricesCache.get('decimalPrecision');
     if (decimalPrecisionCache !== this.decimalPrecision) {
       try {
         await this.pricesCache.remove(todayKey);
@@ -60,7 +66,7 @@ export class NordpoolPlatformAccessory {
       }
     }
 
-    const areaCache = this.pricesCache.getSync('area');
+    const areaCache = await this.pricesCache.get('area');
     if (this.platform.config.area !== undefined && areaCache !== this.platform.config.area) {
       try {
         await this.pricesCache.remove(todayKey);
@@ -76,9 +82,11 @@ export class NordpoolPlatformAccessory {
       }
     }
 
-    pricing.today = this.pricesCache.getSync(todayKey, []);
+    pricing.today = await this.pricesCache.get(todayKey, []);
+    const tmrw = await this.pricesCache.get(tomorrowKey);
+
     if (pricing.today.length === 0
-        || (currentHour >= 18 && !this.pricesCache.getSync(tomorrowKey))
+        || (currentHour >= 18 && !tmrw)
     ) {
       this.fnc.pullNordpoolData()
         .then((results) => {
@@ -133,7 +141,7 @@ export class NordpoolPlatformAccessory {
           this.platform.log.error(`ERR: Failed to get todays's prices, will retry in 1 hour. ${error}`);
         });
     } else {
-      pricing.today = this.pricesCache.getSync(todayKey, []);
+      pricing.today = await this.pricesCache.get(todayKey, []);
       this.fnc.analyze_and_setServices(currentHour);
     }
   }

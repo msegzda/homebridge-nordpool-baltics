@@ -113,9 +113,17 @@ export class Functions {
 
   async pullNordpoolData() {
     try {
-      const rawData = this.platform.config.area.match(/^(LT|LV|EE|FI)$/)
-        ? await eleringEE_getNordpoolData(this.platform.log, this.platform.config)
-        : await spothinta_getNordpoolData(this.platform.log, this.platform.config);
+
+      let rawData;
+      if ( this.platform.config.area.match(/^(LT|LV|EE|FI)$/) ) {
+        rawData = await eleringEE_getNordpoolData(this.platform.log, this.platform.config);
+      }
+
+      // retry for Baltics on different provider
+      // other countries use this as primary
+      if ( !rawData ) {
+        rawData = await spothinta_getNordpoolData(this.platform.log, this.platform.config);
+      }
 
       if (!rawData) {
         this.platform.log.warn(`ERR: No response from API for ${this.platform.config.area} area`);
@@ -149,15 +157,15 @@ export class Functions {
     }
   }
 
-  applySolarOverride(config: PlatformConfig, force: boolean) {
+  async applySolarOverride(config: PlatformConfig, force: boolean) {
     if (config.solarOverride === null || config.solarOverride === false) {
       return;
     }
 
     const today = DateTime.local();
     const todayKey = fnc_todayKey(config);
-
-    if ( !force && this.pricesCache.getSync(`solarOverrideApplied_${todayKey}`) ) {
+    const solarOverrideApplied = await this.pricesCache.get(`solarOverrideApplied_${todayKey}`);
+    if ( !force && solarOverrideApplied ) {
       return;
     }
 
@@ -306,7 +314,7 @@ export class Functions {
     }
 
     // try cached from 2-days calculation - if not avail then calculate fresh
-    let retVal = this.pricesCache.getSync('5consecutiveUpdated', []);
+    let retVal = await this.pricesCache.get('5consecutiveUpdated', []);
 
     if (retVal === undefined || retVal.length === 0) {
       const hourSequences: HourSequence[] = [];
@@ -430,7 +438,7 @@ export class Functions {
     const tomorrowKey = fnc_tomorrowKey(this.platform.config);
     const currentHour = fnc_currentHour(this.platform.config);
 
-    let tomorrow = [] as Array<NordpoolData>; tomorrow = this.pricesCache.getSync(tomorrowKey, []);
+    let tomorrow = [] as Array<NordpoolData>; tomorrow = await this.pricesCache.get(tomorrowKey, []);
     let twoDaysPricing = [] as Array<NordpoolData>;
 
     // stop function if not full data

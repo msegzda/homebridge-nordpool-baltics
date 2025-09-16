@@ -6,9 +6,10 @@ import { defaultAreaTimezone } from './settings';
 export async function spothinta_getNordpoolData(log: Logger, config: PlatformConfig) {
   const area = config.area.toUpperCase(); // Ensure the area is in uppercase (e.g., SE1, SE2, etc.)
   const reqDate = DateTime.now().toFormat('yyyy-MM-dd');
+  const url = `https://d2bgvb23eieffh.cloudfront.net/?reqDate=${reqDate}&region=${area}`;
 
   try {
-    const response = await axios.get(`https://d2bgvb23eieffh.cloudfront.net/?reqDate=${reqDate}&region=${area}`);
+    const response = await axios.get(url, {timeout:10000});
 
     if (response.status !== 200) {
       log.warn(`WARN: Nordpool API provider 2 returned unusual response status ${response.status}`);

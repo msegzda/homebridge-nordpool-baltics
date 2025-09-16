@@ -3,7 +3,6 @@ import { defaultAreaTimezone } from './settings';
 import axios from 'axios';
 import { Logger, PlatformConfig } from 'homebridge';
 
-
 export async function eleringEE_getNordpoolData(log:Logger, config:PlatformConfig) {
   const start = DateTime.utc().startOf('day').minus({hours:4}).toISO();
   const end = DateTime.utc().plus({days:1}).endOf('day').toISO();
@@ -11,10 +10,10 @@ export async function eleringEE_getNordpoolData(log:Logger, config:PlatformConfi
 
   const encodedStart = encodeURIComponent(start);
   const encodedEnd = encodeURIComponent(end);
+  const url = `https://d1scxn3suy8jhc.cloudfront.net/?reqDate=${reqDate}&start=${encodedStart}&end=${encodedEnd}`;
 
   try {
-    const url = `https://d1scxn3suy8jhc.cloudfront.net/?reqDate=${reqDate}&start=${encodedStart}&end=${encodedEnd}`;
-    const response = await axios.get(url);
+    const response = await axios.get(url, {timeout:10000});
     if (response.status !== 200 ) {
       log.warn(`WARN: Nordpool API provider 1 returned unusual response status ${response.status}`);
     }
