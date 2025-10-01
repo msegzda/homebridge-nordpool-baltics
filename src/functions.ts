@@ -130,7 +130,9 @@ export class Functions {
         return null;
       }
 
-      return rawData;
+      // Convert 15-minute data to hourly averages
+      this.platform.log.warn('NOTE: Hourly prices are averaged from 15-minute intervals');
+      return this.convertToHourlyAverages(rawData);
 
     } catch (error) {
       this.platform.log.error('API Error:', error instanceof Error ? error.message : String(error));
@@ -517,4 +519,34 @@ export class Functions {
 
     return filledData;
   }
+
+  convertToHourlyAverages(data: NordpoolData[]): NordpoolData[] {
+  // Group data by day and hour
+    const hourlyDataMap = new Map<string, { total: number; count: number; hour: number; day: string }>();
+
+    data.forEach(item => {
+      const key = `${item.day}-${item.hour}`;
+
+      if (!hourlyDataMap.has(key)) {
+        hourlyDataMap.set(key, {
+          total: item.price,
+          count: 1,
+          hour: item.hour,
+          day: item.day,
+        });
+      } else {
+        const existing = hourlyDataMap.get(key)!;
+        existing.total += item.price;
+        existing.count += 1;
+      }
+    });
+
+    // Convert map back to array with averaged prices
+    return Array.from(hourlyDataMap.values()).map(({ day, hour, total, count }) => ({
+      day,
+      hour,
+      price: parseFloat((total / count).toFixed(this.decimalPrecision)), // Use configured precision for averaging
+    }));
+  }
+
 }

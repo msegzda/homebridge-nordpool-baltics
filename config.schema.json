@@ -131,7 +131,7 @@
                 "required": false,
                 "type": "boolean",
                 "default": false,
-                "title": "Show 'current hour' sensor (Nordpool_currentHour)"
+                "title": "DEPRECATED: Show 'current hour' sensor (Nordpool_currentHour)"
             },
             "excessivePriceMargin": {
                 "title": "Excessive Price Margin Above Median",

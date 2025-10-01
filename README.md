@@ -6,6 +6,8 @@
 ![NPM License](https://img.shields.io/npm/l/homebridge-nordpool-baltics)
 [![donate](https://badgen.net/badge/paypal/donate/003087?icon=https://simpleicons.now.sh/paypal/fff)](https://paypal.me/msegzda)
 
+⚡ Important Update: Nordpool 15-minute pricing intervals averaging is now in effect. [Please read more details here](#nordpool-15-minute-pricing-intervals).
+
 If your electricity is billed based on hourly rates through a smart meter, this plugin enables you to automate power-intensive appliances in accordance with Nordpool's pricing levels. For example, this could apply to:
 
 - Car charging
@@ -34,11 +36,11 @@ Plugin exposes the below described 'virtual' accessories:
 
 1. `Nordpool_hourlyTickerSwitch`: A switch that cycles ON and OFF every hour. Use it in 'An Accessory is Controlled' event on HomeKit automation. Then check for desired price/levels further on automation logic;
 
-1. `Nordpool_currentPrice`: A Light Sensor representing the current hour's electricity price in cents (1 LUX = 1 cent). Due to HomeKit limitation, the minimal value is 0.0001, even if the actual price is 0 or negative.
+1. `Nordpool_currentPrice`: A Light Sensor representing the current hour's average electricity price in cents (1 LUX = 1 cent). Due to HomeKit limitation, the minimal value is 0.0001, even if the actual price is 0 or negative.
 
-1. `Nordpool_cheapestHour`: Motion Sensor goes into 'motion detected' state if current hour electricity price ranks cheapest in the day. There can be more than one cheapest hours in the event of repeated same-price occurrences;
+1. `Nordpool_cheapestHour`: Motion Sensor goes into 'motion detected' state if current hour average electricity price ranks cheapest in the day. There can be more than one cheapest hours in the event of repeated same-price occurrences;
 
-1. `Nordpool_cheapest4Hours` to `Nordpool_cheapest12Hours` (optional on Plugin Config): A series of Motion Sensors which trigger a 'motion detected' state when the current hour's electricity price ranks among the cheapest of the day. The count can exceed the specified number in the event of repeated same-price occurrences;
+1. `Nordpool_cheapest4Hours` to `Nordpool_cheapest12Hours` (optional on Plugin Config): A series of Motion Sensors which trigger a 'motion detected' state when the current hour's average electricity price ranks among the cheapest of the day. The count can exceed the specified number in the event of repeated same-price occurrences;
 
 1. `Nordpool_cheapest5HoursConsec` (optional on Plugin Config): This Motion Sensor triggers during the 5 consecutive lowest-priced electricity hours ensuring energy-intensive appliances can operate uninterrupted for a stretch of 5 hours. Note more details about its [calculation below](#cheapest-consecutive-hours-calculation-logic).
 
@@ -48,7 +50,7 @@ Plugin exposes the below described 'virtual' accessories:
     - OR current hour price exceeds configured 'Excessive Price Margin Above Median' value (default 200%);
     - AND all of above exceeds configured 'Minimum Price Threshold for Priciest Hour(s)' value (default 0).
 
-1. `Nordpool_currentHour` (optional on Plugin Config): Temperature sensor (possible values 0-23) denoting current hour of the day (24h format). Eliminates 'current hour' scripting needed on HomeKit rules.
+1. `Nordpool_currentHour` (DEPRECATED, optional on Plugin Config): Temperature sensor (possible values 0-23) denoting current hour of the day (24h format). Eliminates 'current hour' scripting needed on HomeKit rules. As of 2025-10-01 this virtual accessory is considered deprecated. Convert your automations to use built in `Current Date->Time` variable instead.
 
 ## HomeKit Automation Examples ##
 
@@ -88,3 +90,13 @@ Enable relevant checkbox and configure your solar plant latitude ([locator here]
 For accurate hour-to-price matching, it's important that the timezone of your homebridge system (the host) aligns with the timezone of the chosen Nordpool area. If there is a mismatch, the plugin will emit a warning in the log.
 
 Additionally, please verify that your system's clock is regularly synchronized to ensure consistent and accurate hour-to-price ticking.
+
+## Nordpool 15-minute Pricing Intervals ##
+
+Starting on 2025-10-01 Nordpool has switched to 15-minute pricing intervals. This plugin now provides **hourly average prices** to maintain full backward compatibility with your existing automations.
+
+To recap, this plugin now:
+
+- **Averages** the four 15-minute prices within each hour
+- **Continues** automations on a **per-hour basis**
+- **Ensures** seamless backward compatibility with your existing setups
