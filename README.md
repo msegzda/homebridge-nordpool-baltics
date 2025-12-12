@@ -61,8 +61,6 @@ Here are a few automation examples, based on real-life use cases. Please note, t
 | ![Boiler1](images/boiler1.png) | ![Floor1](images/floor1.png)  | ![Car1](images/car1.png)   |
 | ![Boiler2](images/boiler2.png)  | ![Floor2](images/floor2.png)  | ![Car2](images/car2.png)  |
 
-Have you devised an ingenious automation making the most out of this plugin? Don't keep it to yourself - [share it using this form](https://github.com/msegzda/homebridge-nordpool-baltics/issues/new)!
-
 ## Cheapest Consecutive Hours Calculation Logic ##
 
 Motion sensor `Nordpool_cheapest5HoursConsec` calculation logic is the following:
