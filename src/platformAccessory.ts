@@ -42,9 +42,14 @@ export class NordpoolPlatformAccessory {
     const tomorrowKey = fnc_tomorrowKey(this.platform.config);
     const currentHour = fnc_currentHour(this.platform.config);
 
+    const cachedToday = await this.pricesCache.get(todayKey);
+    const cachedTomorrow = await this.pricesCache.get(tomorrowKey);
+    const todayExists = Array.isArray(cachedToday) && cachedToday.length > 0;
+    const tomorrowExists = Array.isArray(cachedTomorrow) && cachedTomorrow.length > 0;
+
     this.platform.log.debug(`Cache stats: ${JSON.stringify({
-      todayExists: this.pricesCache.getSync(todayKey) !== undefined,
-      tomorrowExists: this.pricesCache.getSync(tomorrowKey) !== undefined,
+      todayExists: todayExists,
+      tomorrowExists: tomorrowExists,
       cacheDir: this.pricesCache.basePath,
     })}`);
 
@@ -82,12 +87,7 @@ export class NordpoolPlatformAccessory {
       }
     }
 
-    pricing.today = await this.pricesCache.get(todayKey, []);
-    const tmrw = await this.pricesCache.get(tomorrowKey);
-
-    if (pricing.today.length === 0
-        || (currentHour >= 18 && !tmrw)
-    ) {
+    if (!todayExists || (currentHour >= 18 && !tomorrowExists)) {
       this.fnc.pullNordpoolData()
         .then((results) => {
           if (results) {

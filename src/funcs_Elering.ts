@@ -5,7 +5,7 @@ import { Logger, PlatformConfig } from 'homebridge';
 
 export async function eleringEE_getNordpoolData(log:Logger, config:PlatformConfig) {
   const start = DateTime.utc().startOf('day').minus({hours:4}).toISO();
-  const end = DateTime.utc().plus({days:1}).endOf('day').toISO();
+  const end = DateTime.utc().plus({days:2}).startOf('day').plus({hours:4}).toISO();
   const reqDate = DateTime.now().toFormat('yyyy-MM-dd');
 
   const encodedStart = encodeURIComponent(start);

@@ -6,7 +6,7 @@
 ![NPM License](https://img.shields.io/npm/l/homebridge-nordpool-baltics)
 [![donate](https://badgen.net/badge/paypal/donate/003087?icon=https://simpleicons.now.sh/paypal/fff)](https://paypal.me/msegzda)
 
-⚡ Important Update: Nordpool 15-minute pricing intervals averaging is now in effect. [Please read more details here](#nordpool-15-minute-pricing-intervals).
+⚡⚡ Important Update: Nordpool 15-minute pricing intervals averaging now in effect. [Please read more details here](#nordpool-15-minute-pricing-intervals).
 
 If your electricity is billed based on hourly rates through a smart meter, this plugin enables you to automate power-intensive appliances in accordance with Nordpool's pricing levels. For example, this could apply to:
 
