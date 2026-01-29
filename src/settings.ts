@@ -51,7 +51,6 @@ export interface Pricing {
     median2days: number;
   }
 
-// eslint-disable-next-line prefer-const
 export let pricing: Pricing = {
   today: [],
   currently: 0.0001,
