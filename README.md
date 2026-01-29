@@ -58,8 +58,8 @@ Here are a few automation examples, based on real-life use cases. Please note, t
 
 | Water heater | Floor heater | Car charging |
 | --------- | --------- | --------- |
-| ![Boiler1](images/boiler1.png) | ![Floor1](images/floor1.png)  | ![Car1](images/car1.png)   |
-| ![Boiler2](images/boiler2.png)  | ![Floor2](images/floor2.png)  | ![Car2](images/car2.png)  |
+| ![Boiler1](images/boiler1.png) | ![Floor1](images/floor1.png) | ![Car1](images/car1.png) |
+| ![Boiler2](images/boiler2.png) | ![Floor2](images/floor2.png) | ![Car2](images/car2.png) |
 
 ## Cheapest Consecutive Hours Calculation Logic ##
 
