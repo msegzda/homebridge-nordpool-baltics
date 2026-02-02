@@ -45,3 +45,4 @@ Follow these repository-specific rules to be productive immediately.
 - Never hallucinate. Make sure any solutions are based on the code and context provided and based on trustworthy internet resources.
 - Always provide reliable solutions that work as expected.
 - When suggesting code, ensure it follows the existing coding style and conventions used in the repository.
+- Make sure code is compiling after any agentic updates.

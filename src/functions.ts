@@ -207,9 +207,9 @@ export class Functions {
       );
 
       for (let i = solarOverrideJuneHourStartDecimal; i < solarOverrideJuneHourEndDecimal; i++) {
-        pricing.today[i].price = 0;
+          pricing.today[i].price = 0;
+        }
       }
-    }
     this.pricesCache.set(todayKey, pricing.today);
     this.pricesCache.set(`solarOverrideApplied_${todayKey}`, true);
   }
@@ -380,7 +380,7 @@ export class Functions {
         .updateValue(currentHour);
     }
 
-    this.applySolarOverride(this.platform.config, false);
+    await this.applySolarOverride(this.platform.config, false);
 
     // if new day or cheapest hours not calculated yet
     if (currentHour === 0 || pricing.cheapest4Hours.length === 0) {

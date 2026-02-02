@@ -89,7 +89,7 @@ export class NordpoolPlatformAccessory {
 
     if (!todayExists || (currentHour >= 18 && !tomorrowExists)) {
       this.fnc.pullNordpoolData()
-        .then((results) => {
+        .then(async (results) => {
           if (results) {
             let todayResults = results.filter(result => result.day === todayKey);
             let tomorrowResults = results.filter(result => result.day === tomorrowKey);
@@ -102,10 +102,10 @@ export class NordpoolPlatformAccessory {
             if (todayResults.length === 25 || todayResults.length === 24) {
               this.pricesCache.set(todayKey, todayResults);
               pricing.today = todayResults;
-              this.pricesCache.setSync(`solarOverrideApplied_${todayKey}`, false);
+              this.pricesCache.set(`solarOverrideApplied_${todayKey}`, false);
               this.platform.log.debug(`OK: pulled Nordpool prices in ${this.platform.config.area} area for TODAY (${todayKey})`);
               this.platform.log.debug(JSON.stringify(todayResults.map(({ hour, price }) => ({ hour, price }))));
-              this.fnc.analyze_and_setServices(currentHour);
+              await this.fnc.analyze_and_setServices(currentHour);
             } else {
               this.platform.log.warn('WARN: Something is incorrect with API response. Unable to determine today\'s Nordpool prices.');
               this.platform.log.warn(`Raw response: ${JSON.stringify(todayResults)}`);
@@ -142,7 +142,7 @@ export class NordpoolPlatformAccessory {
         });
     } else {
       pricing.today = await this.pricesCache.get(todayKey, []);
-      this.fnc.analyze_and_setServices(currentHour);
+      await this.fnc.analyze_and_setServices(currentHour);
     }
   }
 }
