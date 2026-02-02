@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Open homebridge logs tail",
+            "type": "shell",
+            "command": "hb-service",
+            "args": ["logs", "-f"],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        }
+    ]
+}

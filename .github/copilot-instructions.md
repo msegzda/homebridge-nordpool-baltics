@@ -38,7 +38,10 @@ Follow these repository-specific rules to be productive immediately.
 ## Where to add tests
 - Unit-test data processing in `src/functions.ts` (e.g., `convertToHourlyAverages`, `getCheapestConsecutiveHours`, median & priciest logic). Use `jest` and mock provider responses from `funcs_Elering`/`funcs_SpotHinta`.
 
-## Small checklist before changes
+## Small checklist to always follow
 - Verify timezone-sensitive changes using `Functions.checkSystemTimezone()` and test DST edge cases (23/25 hour days).
 - If modifying price conversion, keep the 15→60 minute averaging step in `Functions.pullNordpoolData()`.
 - Preserve existing cache keys and semantics unless intentionally migrating cache format
+- Never hallucinate. Make sure any solutions are based on the code and context provided and based on trustworthy internet resources.
+- Always provide reliable solutions that work as expected.
+- When suggesting code, ensure it follows the existing coding style and conventions used in the repository.

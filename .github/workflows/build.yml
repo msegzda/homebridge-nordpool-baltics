@@ -37,5 +37,7 @@ jobs:
           npm list --outdated
           npm run build
 
-      - name: Run tests
-        run: npm test
+      - name: Run tests, validations
+        run: |
+            node -e "const fs=require('fs');try{JSON.parse(fs.readFileSync('config.schema.json','utf8'));console.log('OK: config.schema.json is valid JSON');}catch(e){console.error('INVALID JSON:',e.message);process.exit(1);}"
+            npm test
