@@ -8,7 +8,6 @@ export async function awattar_getNordpoolData(log: Logger, config: PlatformConfi
   const tomorrow = DateTime.now().plus({ days: 2 }).startOf('day').toFormat('yyyy-MM-dd');
   const today = DateTime.now().minus({ days: 1 }).startOf('day').toFormat('yyyy-MM-dd');
   const url = `https://api.awattar.de/v1/marketdata?start=${today}&end=${tomorrow}`;
-  log.debug(`DEBUG: Fetching ${url}`);
 
   try {
     const response = await axios.get(url, { timeout: 10000 });
