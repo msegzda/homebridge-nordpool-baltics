@@ -42,17 +42,6 @@ export class NordpoolPlatformAccessory {
     const tomorrowKey = fnc_tomorrowKey(this.platform.config);
     const currentHour = fnc_currentHour(this.platform.config);
 
-    const cachedToday = await this.pricesCache.get(todayKey);
-    const cachedTomorrow = await this.pricesCache.get(tomorrowKey);
-    const todayExists = Array.isArray(cachedToday) && cachedToday.length > 0;
-    const tomorrowExists = Array.isArray(cachedTomorrow) && cachedTomorrow.length > 0;
-
-    this.platform.log.debug(`Cache stats: ${JSON.stringify({
-      todayExists: todayExists,
-      tomorrowExists: tomorrowExists,
-      cacheDir: this.pricesCache.basePath,
-    })}`);
-
     // did precision config change?
     // if changed: clear cache and reload the data from Nordpool prices provider
     const decimalPrecisionCache = await this.pricesCache.get('decimalPrecision');
@@ -69,6 +58,8 @@ export class NordpoolPlatformAccessory {
         );
         this.pricesCache.set('decimalPrecision', this.decimalPrecision);
       }
+      // 1s wait to ensure cache files are deleted before proceeding
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     const areaCache = await this.pricesCache.get('area');
@@ -85,7 +76,20 @@ export class NordpoolPlatformAccessory {
         );
         this.pricesCache.set('area', this.platform.config.area);
       }
+      // 1s wait to ensure cache files are deleted before proceeding
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
+
+    const cachedToday = await this.pricesCache.get(todayKey);
+    const cachedTomorrow = await this.pricesCache.get(tomorrowKey);
+    const todayExists = Array.isArray(cachedToday) && cachedToday.length > 0;
+    const tomorrowExists = Array.isArray(cachedTomorrow) && cachedTomorrow.length > 0;
+
+    this.platform.log.debug(`Cache stats: ${JSON.stringify({
+      todayExists: todayExists,
+      tomorrowExists: tomorrowExists,
+      cacheDir: this.pricesCache.basePath,
+    })}`);
 
     if (!todayExists || (currentHour >= 18 && !tomorrowExists)) {
       this.fnc.pullNordpoolData()
