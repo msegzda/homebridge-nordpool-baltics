@@ -2,6 +2,7 @@ import { PlatformAccessory, API, PlatformConfig, Logging } from 'homebridge';
 import { NordpoolPlatform } from './platform';
 import { eleringEE_getNordpoolData } from './funcs_Elering';
 import { spothinta_getNordpoolData } from './funcs_SpotHinta';
+import { awattar_getNordpoolData } from './funcs_Awattar';
 import { fnc_todayKey } from './settings';
 
 import { DateTime } from 'luxon';
@@ -117,6 +118,10 @@ export class Functions {
       let rawData;
       if ( this.platform.config.area.match(/^(LT|LV|EE|FI)$/) ) {
         rawData = await eleringEE_getNordpoolData(this.platform.log, this.platform.config);
+      }
+
+      if ( !rawData && this.platform.config.area.match(/^(DE|LU)$/) ) {
+        rawData = await awattar_getNordpoolData(this.platform.log, this.platform.config);
       }
 
       // retry for Baltics on different provider

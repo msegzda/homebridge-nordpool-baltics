@@ -159,6 +159,8 @@ export function defaultAreaTimezone(config: PlatformConfig): string {
     NO3: 'Europe/Oslo',       // Norway NO3
     NO4: 'Europe/Oslo',       // Norway NO4
     NO5: 'Europe/Oslo',       // Norway NO5
+    DE: 'Europe/Berlin',      // Germany
+    LU: 'Europe/Luxembourg',  // Luxembourg
   };
 
   // Return the corresponding timezone or fallback to a default (e.g., Europe/Vilnius)

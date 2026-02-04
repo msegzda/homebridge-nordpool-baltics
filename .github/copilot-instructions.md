@@ -46,3 +46,4 @@ Follow these repository-specific rules to be productive immediately.
 - Always provide reliable solutions that work as expected.
 - When suggesting code, ensure it follows the existing coding style and conventions used in the repository.
 - Make sure code is compiling after any agentic updates.
+- If new countries are added make sure edits are minimally invasive and these countries are noted in the README.md and plugin description.

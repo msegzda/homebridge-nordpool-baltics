@@ -10,7 +10,7 @@ export async function eleringEE_getNordpoolData(log:Logger, config:PlatformConfi
 
   const encodedStart = encodeURIComponent(start);
   const encodedEnd = encodeURIComponent(end);
-  const url = `https://d1scxn3suy8jhc.cloudfront.net/?reqDate=${reqDate}&start=${encodedStart}&end=${encodedEnd}`;
+  const url = `https://dashboard.elering.ee/api/nps/price?reqDate=${reqDate}&start=${encodedStart}&end=${encodedEnd}`;
 
   try {
     const response = await axios.get(url, {timeout:10000});

@@ -33,7 +33,9 @@
                     { "title": "Norway NO2", "enum": ["NO2"] },
                     { "title": "Norway NO3", "enum": ["NO3"] },
                     { "title": "Norway NO4", "enum": ["NO4"] },
-                    { "title": "Norway NO5", "enum": ["NO5"] }
+                    { "title": "Norway NO5", "enum": ["NO5"] },
+                    { "title": "Germany", "enum": ["DE"] },
+                    { "title": "Luxembourg", "enum": ["LU"] }
                 ]
             },
             "decimalPrecision": {
