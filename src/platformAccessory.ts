@@ -54,7 +54,7 @@ export class NordpoolPlatformAccessory {
         this.platform.log.error(`ERR: failed clearing pricesCache: ${JSON.stringify(error)}`);
       } finally {
         this.platform.log.warn(
-          `Configured Decimal Precision value changed from ${decimalPrecisionCache} to ${this.decimalPrecision}`,
+          `Configured Decimal Precision changed from ${decimalPrecisionCache} to ${this.decimalPrecision}`,
         );
         this.pricesCache.set('decimalPrecision', this.decimalPrecision);
       }
