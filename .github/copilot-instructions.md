@@ -5,13 +5,12 @@ Follow these repository-specific rules to be productive immediately.
 ## Big picture
 - **Plugin type:** Homebridge platform plugin. Entry point: `src/index.ts` which registers the platform class `NordpoolPlatform`.
 - **Runtime flow:** `src/platform.ts` discovers/registers accessories -> `src/platformAccessory.ts` initializes services and schedules hourly price fetches -> `src/functions.ts` pulls and processes Nordpool data and updates virtual accessories.
-- **Data providers:** `src/funcs_Elering.ts` and `src/funcs_SpotHinta.ts` implement external API fetches. Prices are converted to hourly averages in `Functions.pullNordpoolData()`.
+- **Data providers:** on files `src/funcs_*.ts`. If provider returns 15-minute interval prices, they are converted to hourly averages in `Functions.pullNordpoolData()`.
 
 ## Key files to inspect
 - Core: [src/index.ts](../src/index.ts), [src/platform.ts](../src/platform.ts), [src/platformAccessory.ts](../src/platformAccessory.ts), [src/functions.ts](../src/functions.ts)
-- Nordpool data providers: [src/funcs_Elering.ts](../src/funcs_Elering.ts), [src/funcs_SpotHinta.ts](../src/funcs_SpotHinta.ts)
-- Config/constants: [src/settings.ts](../src/settings.ts), [config.schema.json](../config.schema.json)
-- Dev & publish scripts: [package.json](../package.json)
+- Config/constants: `src/settings.ts`,`config.schema.json`
+- Dev & publish scripts: `package.json`
 
 ## Important patterns & domain rules
 - The plugin caches daily prices using `file-system-cache` via helpers in `settings.ts`. Cache keys include `fnc_todayKey`, `fnc_tomorrowKey`, and flags like `5consecutiveUpdated` and `solarOverrideApplied_<day>`.
