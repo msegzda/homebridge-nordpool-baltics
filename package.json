@@ -3,7 +3,7 @@
     "name": "homebridge-nordpool-baltics",
     "version": "2.2.0",
     "private": false,
-    "description": "Plugin exposes virtual accessories (switch, light, presence, temperature) and enables HomeKit automation by Nordpool electricity price in Lithuania, Latvia, Estonia, Finland, Sweden, Norway, Denmark, Germany, Luxembourg.",
+    "description": "Plugin exposes virtual accessories (switch, light, presence, temperature) and enables HomeKit automation by Nordpool electricity price in Lithuania, Latvia, Estonia, Finland, Sweden, Norway, Denmark, Germany, Luxembourg, Austria.",
     "homepage": "https://github.com/msegzda/homebridge-nordpool-baltics",
     "author": {
         "name": "Mantas Segzda",
@@ -35,6 +35,7 @@
         "norway",
         "germany",
         "luxembourg",
+        "austria",
         "electricity",
         "spot",
         "price",
@@ -59,12 +60,17 @@
         "test": "jest --passWithNoTests && npm run lint:md",
         "build": "rimraf ./dist && tsc",
         "prepublishOnly": "npm run lint && npm run build",
-        "postpublish": "node ./src/deprecate-old-versions.mjs"
+        "deploylocal": "npm run build && npm link && sudo hb-service restart",
+        "postpublish": "node ./scripts/deprecate-old-versions.mjs"
     },
     "jest": {
         "preset": "ts-jest",
         "testEnvironment": "node",
-        "passWithNoTests": true
+        "passWithNoTests": true,
+        "testPathIgnorePatterns": [
+            "/node_modules/",
+            "/dist/"
+        ]
     },
     "devDependencies": {
         "@types/jest": "^29.5.12",

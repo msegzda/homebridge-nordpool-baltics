@@ -127,11 +127,24 @@ export function defaultPricesCache(api: API, log: Logging) {
       if (fileAge >= 172800 * 1000 * 2) {
         fs.unlinkSync(filePath);
         log.debug(`OK: Deleted old cache file: ${filePath}`);
+        return;
       }
+      // Check if file is valid JSON
+      const content = fs.readFileSync(filePath, 'utf8');
+      JSON.parse(content);
     } catch (error) {
-      log.warn(
-        `Failed to access file stats or delete file: ${filePath}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
+      if (error instanceof SyntaxError) {
+        log.warn(`Corrupted cache file detected and removed: ${filePath}`);
+        try {
+          fs.unlinkSync(filePath);
+        } catch (unlinkError) {
+          log.error(`Failed to delete corrupted cache file: ${filePath}`);
+        }
+      } else {
+        log.warn(
+          `Failed to access file stats or delete file: ${filePath}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      }
     }
   });
 
@@ -161,6 +174,7 @@ export function defaultAreaTimezone(config: PlatformConfig): string {
     NO5: 'Europe/Oslo',       // Norway NO5
     DE: 'Europe/Berlin',      // Germany
     LU: 'Europe/Luxembourg',  // Luxembourg
+    AT: 'Europe/Vienna',      // Austria
   };
 
   // Return the corresponding timezone or fallback to a default (e.g., Europe/Vilnius)

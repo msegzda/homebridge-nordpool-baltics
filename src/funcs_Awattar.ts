@@ -7,7 +7,9 @@ export async function awattar_getNordpoolData(log: Logger, config: PlatformConfi
   const areaTimeZone = defaultAreaTimezone(config);
   const tomorrow = DateTime.now().plus({ days: 2 }).startOf('day').toFormat('yyyy-MM-dd');
   const today = DateTime.now().minus({ days: 1 }).startOf('day').toFormat('yyyy-MM-dd');
-  const url = `https://api.awattar.de/v1/marketdata?start=${today}&end=${tomorrow}`;
+
+  const domain = config.area.toLowerCase() === 'at' ? 'awattar.at' : 'awattar.de';
+  const url = `https://api.${domain}/v1/marketdata?start=${today}&end=${tomorrow}`;
 
   try {
     const response = await axios.get(url, { timeout: 10000 });

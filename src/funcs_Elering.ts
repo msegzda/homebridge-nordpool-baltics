@@ -4,21 +4,17 @@ import axios from 'axios';
 import { Logger, PlatformConfig } from 'homebridge';
 
 export async function eleringEE_getNordpoolData(log:Logger, config:PlatformConfig) {
-  const start = DateTime.utc().startOf('day').minus({hours:4}).toISO();
-  const end = DateTime.utc().plus({days:2}).startOf('day').plus({hours:4}).toISO();
-  const reqDate = DateTime.now().toFormat('yyyy-MM-dd');
 
-  const encodedStart = encodeURIComponent(start);
-  const encodedEnd = encodeURIComponent(end);
-  const url = `https://dashboard.elering.ee/api/nps/price?reqDate=${reqDate}&start=${encodedStart}&end=${encodedEnd}`;
+  // logic and format resembles elering implementation on nordpool-cf/src/worker.js
+  const url = `https://pub-460c981173fb4262a268d6f273d18dd2.r2.dev/elering_${config.area.toUpperCase()}.json`;
 
   try {
     const response = await axios.get(url, {timeout:10000});
     if (response.status !== 200 ) {
       log.warn(`WARN: Nordpool API provider 1 returned unusual response status ${response.status}`);
     }
-    if (response.data.data) {
-      const convertedData = eleringEE_convertDataStructure(response.data.data, config);
+    if (response.data) {
+      const convertedData = eleringEE_convertDataStructure(response.data, config);
       return convertedData;
     } else {
       log.error(`ERR: Nordpool API provider 1 returned unusual data ${JSON.stringify(response.data)}`);
@@ -30,14 +26,13 @@ export async function eleringEE_getNordpoolData(log:Logger, config:PlatformConfi
 }
 
 export function eleringEE_convertDataStructure(
-  data: { [x: string]: { timestamp: number; price: number }[] },
+  data: { timestamp: number; price: number }[],
   config: PlatformConfig,
 ) {
-  const area = config.area.toLowerCase();
   const areaTimeZone = defaultAreaTimezone(config);
   const decimalPrecision = config.decimalPrecision ?? 1;
 
-  return data[area].map((item: { timestamp: number; price: number }) => {
+  return data.map((item: { timestamp: number; price: number }) => {
     // convert the timestamp to ISO string, then to timezone in the area
     const date = DateTime.fromISO(new Date(item.timestamp * 1000).toISOString()).setZone(areaTimeZone);
     // divide by 10 to convert price to cents per kWh

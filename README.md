@@ -27,6 +27,7 @@ Currently, this plugin supports the following Nordpool electricity market areas:
 - Norway (NO1, NO2, NO3, NO4, NO5)
 - Germany
 - Luxembourg
+- Austria
 
 ## How To Install ##
 

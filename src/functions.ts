@@ -120,7 +120,7 @@ export class Functions {
         rawData = await eleringEE_getNordpoolData(this.platform.log, this.platform.config);
       }
 
-      if ( !rawData && this.platform.config.area.match(/^(DE|LU)$/) ) {
+      if ( !rawData && this.platform.config.area.match(/^(DE|LU|AT)$/) ) {
         rawData = await awattar_getNordpoolData(this.platform.log, this.platform.config);
       }
 

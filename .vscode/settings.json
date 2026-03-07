@@ -1,11 +1,27 @@
 {
     "files.eol": "\n",
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.fixAll.eslint": "explicit"
     },
     "editor.rulers": [140],
     "eslint.enable": true,
-    "cSpell.words": ["asciichart", "baltics", "Consec", "Elering", "homekit", "luxon", "npmjs", "postpublish", "recalc", "spothinta", "suncalc", "venv"],
+    "cSpell.words": [
+        "asciichart",
+        "baltics",
+        "Consec",
+        "Elering",
+        "homekit",
+        "luxon",
+        "npmjs",
+        "postpublish",
+        "recalc",
+        "spothinta",
+        "suncalc",
+        "venv"
+    ],
     "cSpell.ignorePaths": [
         "deprecate-old-versions.mjs",
         "package-lock.json",
@@ -15,5 +31,10 @@
         ".vscode",
         ".vscode-insiders"
     ],
-    "terminal.integrated.defaultLocation": "panel"
+    "terminal.integrated.defaultLocation": "panel",
+    "chat.tools.terminal.autoApprove": {
+        "mv": true,
+        "q": true,
+        "npx jest": true
+    }
 }
