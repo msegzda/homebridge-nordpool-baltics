@@ -60,3 +60,5 @@ Full architecture details (Cloudflare Worker, Homebridge provider, live tests) a
 - When suggesting code, ensure it follows the existing coding style and conventions used in the repository.
 - Make sure code is compiling after any agentic updates.
 - If new countries are added make sure edits are minimally invasive and these countries are noted in the README.md and plugin description.
+- **Before creating a git tag for a release, always update `package.json` `version` to match the tag version.** The npm package is published from `package.json` — version mismatch means a wrong version gets published.
+- **Always add a new entry to `CHANGELOG.md` for every release.** Use plain, human-friendly language — no jargon or technical commit details. Homebridge displays this file to users when they update the plugin.
