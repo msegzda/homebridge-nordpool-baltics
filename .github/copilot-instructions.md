@@ -75,6 +75,7 @@ When asked to create a release or new version, do ALL of the following:
 6. **Create a GitHub Release** using `gh release create <tag>` with a user-friendly title and release notes. Use `gh` CLI (install via `brew install gh` if missing). Release notes must: lead with new features/countries in bold, be written in plain language, and omit internal/CI details unless they affect users.
 
 ### Release notes writing rules
+
 - Lead with the most valuable user-facing changes (new countries, new features, bug fixes that affect behaviour).
 - Use **bold** for new country or feature names.
 - Do not copy commit messages — rewrite for a non-technical audience.
