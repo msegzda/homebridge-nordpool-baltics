@@ -8,26 +8,27 @@
 ## [2.2.0] - 2025-11-25
 
 - Added support for **Germany** and **Luxembourg** electricity prices
-- Minor internal fixes and stability improvements
+- Improved reliability of background data fetching and caching
+- Minor log message cleanup
 
 ## [2.1.0] - 2025-09-10
 
-- Prices are now correctly averaged from 15-minute data intervals into hourly values for areas that provide sub-hourly data
+- Prices for areas that provide 15-minute interval data are now correctly averaged into hourly values, giving more accurate readings
 
 ## [2.0.4] - 2025-07-01
 
-- Baltic countries now automatically switch to a backup data source if the primary one is unavailable
+- Baltic countries now automatically switch to a backup data source if the primary one is unavailable — more reliable price updates
 
 ## [2.0.3] - 2025-03-30
 
-- Fixed a missing hour in price data on daylight saving time (DST) change days in spring
+- Fixed a missing hour in price data on daylight saving time change days in spring (clocks going forward)
 
 ## [2.0.1] - 2025-03-01
 
-- Minor fix
+- Minor fix for cache file permissions
 
 ## [2.0.0]
 
-- Major rewrite with support for more countries and areas
-- Added Sweden, Norway, Denmark, Finland price areas
-- Improved reliability and caching
+- Added support for **Sweden** (SE1, SE2, SE3, SE4), **Norway** (NO1–NO5), and **Denmark** (DK1, DK2) electricity prices
+- Major internal rewrite for better reliability and maintainability
+- Improved caching
