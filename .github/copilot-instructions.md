@@ -44,6 +44,10 @@ Follow these repository-specific rules to be productive immediately.
 
 Full architecture details (Cloudflare Worker, Homebridge provider, live tests) are in [.github/elering-pipeline.md](elering-pipeline.md). Read it before touching `nordpool-cf/`, `src/funcs_Elering.ts`, or `src/elering.test.ts`.
 
+## OMIE data provider (Spain & Portugal)
+
+`src/funcs_OMIE.ts` fetches daily CSV files from the OMIE public API (Iberian electricity market operator — no API key required). Data is published in CET (Europe/Madrid). Portugal uses Europe/Lisbon (1 hour behind CET), so both today and tomorrow CET files are fetched to cover a full Portuguese local day. Prices are in EUR/MWh and converted to cents/kWh by dividing by 10. Live tests are in `src/omie.test.ts`.
+
 ## Where to add tests
 
 - Unit tests for data processing in `src/functions.ts` (e.g. `convertToHourlyAverages`, `getCheapestConsecutiveHours`): use Jest with mocked provider responses.
