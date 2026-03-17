@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.2.2] - 2026-03-17
+
+- Added support for **Spain** and **Portugal** electricity prices (via OMIE, the Iberian electricity market operator — no API key required)
+- Added support for **Austria** electricity prices
+- Live integration tests for all data providers
+
 ## [2.2.1] - 2026-03-17
 
 - Added support for **Austria** electricity prices

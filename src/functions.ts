@@ -3,6 +3,7 @@ import { NordpoolPlatform } from './platform';
 import { eleringEE_getNordpoolData } from './funcs_Elering';
 import { spothinta_getNordpoolData } from './funcs_SpotHinta';
 import { awattar_getNordpoolData } from './funcs_Awattar';
+import { omie_getNordpoolData } from './funcs_OMIE';
 import { fnc_todayKey } from './settings';
 
 import { DateTime } from 'luxon';
@@ -122,6 +123,10 @@ export class Functions {
 
       if ( !rawData && this.platform.config.area.match(/^(DE|LU|AT)$/) ) {
         rawData = await awattar_getNordpoolData(this.platform.log, this.platform.config);
+      }
+
+      if ( !rawData && this.platform.config.area.match(/^(ES|PT)$/) ) {
+        rawData = await omie_getNordpoolData(this.platform.log, this.platform.config);
       }
 
       // retry for Baltics on different provider

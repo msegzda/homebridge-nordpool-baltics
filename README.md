@@ -28,6 +28,8 @@ Currently, this plugin supports the following Nordpool electricity market areas:
 - Germany
 - Luxembourg
 - Austria
+- Spain
+- Portugal
 
 ## How To Install ##
 

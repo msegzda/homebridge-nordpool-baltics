@@ -175,6 +175,8 @@ export function defaultAreaTimezone(config: PlatformConfig): string {
     DE: 'Europe/Berlin',      // Germany
     LU: 'Europe/Luxembourg',  // Luxembourg
     AT: 'Europe/Vienna',      // Austria
+    ES: 'Europe/Madrid',      // Spain
+    PT: 'Europe/Lisbon',      // Portugal
   };
 
   // Return the corresponding timezone or fallback to a default (e.g., Europe/Vilnius)
