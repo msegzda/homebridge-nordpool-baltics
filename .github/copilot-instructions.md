@@ -62,3 +62,21 @@ Full architecture details (Cloudflare Worker, Homebridge provider, live tests) a
 - If new countries are added make sure edits are minimally invasive and these countries are noted in the README.md and plugin description.
 - **Before creating a git tag for a release, always update `package.json` `version` to match the tag version.** The npm package is published from `package.json` — version mismatch means a wrong version gets published.
 - **Always add a new entry to `CHANGELOG.md` for every release.** Use plain, human-friendly language — no jargon or technical commit details. Homebridge displays this file to users when they update the plugin.
+
+## Release process (follow every step in order)
+
+When asked to create a release or new version, do ALL of the following:
+
+1. **Update `package.json` `version`** to match the new version number.
+2. **Update `CHANGELOG.md`** — add a new entry at the top for the new version. Use plain language a non-technical user can understand. Lead with new features and supported countries/regions. Keep internal/CI changes brief at the bottom. No commit hashes, no technical jargon.
+3. **Commit** both files together with a short descriptive commit message.
+4. **Create an annotated git tag** for the new version.
+5. **Push** commits and the tag to origin.
+6. **Create a GitHub Release** using `gh release create <tag>` with a user-friendly title and release notes. Use `gh` CLI (install via `brew install gh` if missing). Release notes must: lead with new features/countries in bold, be written in plain language, and omit internal/CI details unless they affect users.
+
+### Release notes writing rules
+- Lead with the most valuable user-facing changes (new countries, new features, bug fixes that affect behaviour).
+- Use **bold** for new country or feature names.
+- Do not copy commit messages — rewrite for a non-technical audience.
+- Keep it short: 3–6 bullet points maximum.
+- Internal work (CI, tests, tooling) goes last and only if worth mentioning at all.
