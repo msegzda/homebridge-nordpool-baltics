@@ -9,10 +9,13 @@
     "editor.rulers": [140],
     "eslint.enable": true,
     "cSpell.words": [
+        "agentic",
         "asciichart",
         "baltics",
         "Consec",
+        "Deploylocal",
         "Elering",
+        "Homebridge",
         "homekit",
         "luxon",
         "npmjs",
@@ -21,6 +24,16 @@
         "spothinta",
         "suncalc",
         "venv"
+    ],
+    "cSpell.diagnosticLevel": "Warning",
+    "cSpell.enabledFileTypes": {
+        "markdown": true
+    },
+    "cSpell.languageSettings": [
+        {
+            "languageId": "json,jsonc",
+            "ignoreRegExpList": ["\"[^\"]+\"\\s*:"]
+        }
     ],
     "cSpell.ignorePaths": [
         "deprecate-old-versions.mjs",
@@ -35,6 +48,8 @@
     "chat.tools.terminal.autoApprove": {
         "mv": true,
         "q": true,
-        "npx jest": true
-    }
+        "npx jest": true,
+        "npm pack": true
+    },
+    "cSpell.ignoreWords": ["funcs"]
 }

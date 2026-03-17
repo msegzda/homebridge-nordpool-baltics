@@ -48,6 +48,7 @@ Full architecture details (Cloudflare Worker, Homebridge provider, live tests) a
 
 - Unit tests for data processing in `src/functions.ts` (e.g. `convertToHourlyAverages`, `getCheapestConsecutiveHours`): use Jest with mocked provider responses.
 - Live integration tests for data providers: follow the pattern in `src/elering.test.ts` and name files `src/<provider>.test.ts`.
+- Never include tests files into plugin deployment prod package and run any tests on production installations. Tests should only run in dev environments and CI.
 
 ## Small checklist to always follow
 

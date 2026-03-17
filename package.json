@@ -55,9 +55,9 @@
     "main": "dist/index.js",
     "scripts": {
         "lint:md": "markdownlint '*.md'",
-        "lint": "eslint src/**.ts --max-warnings=10",
+        "lint": "eslint src/**.ts --no-warn-ignored --max-warnings=10",
         "watch": "npm run build && npm link && nodemon",
-        "test": "jest --passWithNoTests && npm run lint:md",
+        "test": "jest --passWithNoTests && eslint src/**.ts --no-warn-ignored --max-warnings=10 && printf '\\033[42m\\033[30m PASS \\033[0m  ESLint\\n' && markdownlint '*.md' && printf '\\033[42m\\033[30m PASS \\033[0m  Markdown lint\\n'",
         "build": "rimraf ./dist && tsc",
         "prepublishOnly": "npm run lint && npm run build",
         "deploylocal": "npm run build && npm link && sudo hb-service restart",
@@ -66,7 +66,11 @@
     "jest": {
         "preset": "ts-jest",
         "testEnvironment": "node",
+        "verbose": true,
         "passWithNoTests": true,
+        "setupFiles": [
+            "<rootDir>/src/jest.setup.ts"
+        ],
         "testPathIgnorePatterns": [
             "/node_modules/",
             "/dist/"

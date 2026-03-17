@@ -1,6 +1,6 @@
 module.exports = [
     {
-        ignores: ["nordpool-cf/**"],
+        ignores: ["nordpool-cf/**", "src/**/*.test.ts", "src/**/*.spec.ts"],
     },
     {
         files: ["**/*.ts", "**/*.tsx"],
