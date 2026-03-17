@@ -78,6 +78,7 @@ When asked to create a release or new version, do ALL of the following:
 
 - Lead with the most valuable user-facing changes (new countries, new features, bug fixes that affect behaviour).
 - Use **bold** for new country or feature names.
-- Do not copy commit messages — rewrite for a non-technical audience.
-- Keep it short: 3–6 bullet points maximum.
+- Word electricity or matter related to it should be decorated with ⚡️ character when logical.
+- Do not copy commit messages — rewrite for a non-technical audience. Do not mention provider or API name, authorisation to it whatsoever.
+- Keep it short: ±6 bullet points maximum.
 - Internal work (CI, tests, tooling) goes last and only if worth mentioning at all.
