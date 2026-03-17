@@ -1,7 +1,7 @@
 {
     "displayName": "Homebridge Nordpool Baltics",
     "name": "homebridge-nordpool-baltics",
-    "version": "2.2.0",
+    "version": "2.2.1",
     "private": false,
     "description": "Plugin exposes virtual accessories (switch, light, presence, temperature) and enables HomeKit automation by Nordpool electricity price in Lithuania, Latvia, Estonia, Finland, Sweden, Norway, Denmark, Germany, Luxembourg, Austria.",
     "homepage": "https://github.com/msegzda/homebridge-nordpool-baltics",
@@ -57,7 +57,7 @@
         "lint:md": "markdownlint '*.md'",
         "lint": "eslint src/**.ts --no-warn-ignored --max-warnings=10",
         "watch": "npm run build && npm link && nodemon",
-        "test": "jest --passWithNoTests && eslint src/**.ts --no-warn-ignored --max-warnings=10 && printf '\\033[42m\\033[30m PASS \\033[0m  ESLint\\n' && markdownlint '*.md' && printf '\\033[42m\\033[30m PASS \\033[0m  Markdown lint\\n'",
+        "test": "jest --passWithNoTests && eslint src/**.ts --no-warn-ignored --max-warnings=10 && printf '\\033[42m\\033[30m PASS \\033[0m  ESLint\\n' && markdownlint '*.md' && printf '\\033[42m\\033[30m PASS \\033[0m  Markdown lint\\n' && node scripts/validate-json.mjs && printf '\\033[42m\\033[30m PASS \\033[0m  JSON files\\n'",
         "build": "rimraf ./dist && tsc",
         "prepublishOnly": "npm run lint && npm run build",
         "deploylocal": "npm run build && npm link && sudo hb-service restart",
