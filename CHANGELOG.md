@@ -2,13 +2,9 @@
 
 ## [2.2.2] - 2026-03-17
 
-- Added support for **Spain** and **Portugal** electricity prices (via OMIE, the Iberian electricity market operator — no API key required)
+- Added support for **Spain** and **Portugal** electricity prices
 - Added support for **Austria** electricity prices
 - Live integration tests for all data providers
-
-## [2.2.1] - 2026-03-17
-
-- Added support for **Austria** electricity prices
 - Improved how the plugin is tested and built behind the scenes — no changes to plugin behaviour
 - Package JSON files are now automatically checked for correctness during testing
 
