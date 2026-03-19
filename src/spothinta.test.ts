@@ -20,12 +20,10 @@ import { defaultAreaTimezone } from './settings';
 const SPOTHINTA_REGIONS = ['SE1', 'SE2', 'SE3', 'SE4', 'DK1', 'DK2', 'NO1', 'NO2', 'NO3', 'NO4', 'NO5'] as const;
 type SpotHintaRegion = typeof SPOTHINTA_REGIONS[number];
 
-/** Raw shape returned by the SpotHinta API */
+/** Raw shape returned by the SpotHinta API (only fields used by the plugin) */
 interface SpotHintaRawEntry {
-  Rank: number;
   DateTime: string; // ISO 8601 datetime string
   PriceNoTax: number;
-  PriceWithTax: number;
 }
 
 /** Converted shape produced by spothinta_convertDataStructure */
@@ -90,20 +88,17 @@ describe('SpotHinta API – live data tests', () => {
         expect(rawData.length).toBeGreaterThan(0);
       });
 
-      it('every entry has valid Rank, DateTime (ISO string), PriceNoTax, and PriceWithTax', () => {
+      it('every entry has valid DateTime (ISO string) and PriceNoTax', () => {
         const first = rawData[0];
         const last  = rawData[rawData.length - 1];
         console.log(`[${region}] First entry: DateTime=${first.DateTime}, PriceNoTax=${first.PriceNoTax}`);
         console.log(`[${region}] Last  entry: DateTime=${last.DateTime}, PriceNoTax=${last.PriceNoTax}`);
 
         rawData.forEach((entry, idx) => {
-          expect(typeof entry.Rank).toBe('number');
           expect(typeof entry.DateTime).toBe('string');
           expect(entry.DateTime).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
           expect(typeof entry.PriceNoTax).toBe('number');
-          expect(typeof entry.PriceWithTax).toBe('number');
           expect(isFinite(entry.PriceNoTax)).toBe(true);
-          expect(isFinite(entry.PriceWithTax)).toBe(true);
           if (!entry.DateTime) {
             fail(`Entry ${idx} has missing DateTime`);
           }

@@ -31,7 +31,7 @@ export async function spothinta_getNordpoolData(log: Logger, config: PlatformCon
 
 
 export function spothinta_convertDataStructure(
-  data: { Rank: number; DateTime: string; PriceNoTax: number; PriceWithTax: number }[],
+  data: { DateTime: string; PriceNoTax: number }[],
   config: PlatformConfig,
 ): { day: string; hour: number; price: number }[] {
 

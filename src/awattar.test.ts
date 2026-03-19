@@ -26,12 +26,10 @@ type AwattarRegion = typeof AWATTAR_REGIONS[number];
 /** Stores per-region converted output for cross-region assertions */
 const convertedByRegion = new Map<AwattarRegion, NordpoolEntry[]>();
 
-/** Raw shape returned by the aWATTar API */
+/** Raw shape returned by the aWATTar API (only fields used by the plugin) */
 interface AwattarRawEntry {
   start_timestamp: number; // Unix timestamp in milliseconds
-  end_timestamp: number;   // Unix timestamp in milliseconds
   marketprice: number;     // Price in EUR/MWh
-  unit: string;            // e.g. 'Eur/MWh'
 }
 
 /** Converted shape produced by awattar_convertDataStructure */
@@ -59,17 +57,18 @@ function awattarDomain(area: AwattarRegion): string {
 
 /** Build the API URL matching what awattar_getNordpoolData uses */
 function awattarUrl(area: AwattarRegion): string {
-  const tomorrow = DateTime.now().plus({ days: 2 }).startOf('day').toFormat('yyyy-MM-dd');
-  const today    = DateTime.now().minus({ days: 1 }).startOf('day').toFormat('yyyy-MM-dd');
+  const tz = defaultAreaTimezone({ area } as never);
+  const tomorrow = DateTime.now().setZone(tz).plus({ days: 2 }).startOf('day').toFormat('yyyy-MM-dd');
+  const today    = DateTime.now().setZone(tz).minus({ days: 1 }).startOf('day').toFormat('yyyy-MM-dd');
   return `https://api.${awattarDomain(area)}/v1/marketdata?start=${today}&end=${tomorrow}`;
 }
 
 /**
- * awattar_convertDataStructure uses DateTime.fromMillis() without a zone,
- * so dates are expressed in the local system timezone — mirror that here.
+ * Today's date expressed in the area's own timezone (matches awattar_convertDataStructure).
  */
-function todayLocal(): string {
-  return DateTime.local().toFormat('yyyy-MM-dd');
+function todayForRegion(area: AwattarRegion): string {
+  const tz = defaultAreaTimezone({ area } as never);
+  return DateTime.now().setZone(tz).toFormat('yyyy-MM-dd');
 }
 
 // ──────────────────────────────────────────────────
@@ -86,7 +85,7 @@ describe('aWATTar API – live data tests', () => {
       let converted: NordpoolEntry[];
 
       const config = mockConfig(region);
-      const today  = todayLocal();
+      const today  = todayForRegion(region);
 
       // Download once per region before running assertions
       beforeAll(async () => {
@@ -105,20 +104,17 @@ describe('aWATTar API – live data tests', () => {
         expect(rawData.length).toBeGreaterThan(0);
       });
 
-      it('every entry has valid start_timestamp (ms), end_timestamp (ms), marketprice, and unit', () => {
+      it('every entry has valid start_timestamp (ms) and marketprice', () => {
         const first = rawData[0];
         const last  = rawData[rawData.length - 1];
-        console.log(`[${region}] First entry: start=${new Date(first.start_timestamp).toISOString()}, price=${first.marketprice} ${first.unit}`);
-        console.log(`[${region}] Last  entry: start=${new Date(last.start_timestamp).toISOString()}, price=${last.marketprice} ${last.unit}`);
+        console.log(`[${region}] First entry: start=${new Date(first.start_timestamp).toISOString()}, price=${first.marketprice}`);
+        console.log(`[${region}] Last  entry: start=${new Date(last.start_timestamp).toISOString()}, price=${last.marketprice}`);
 
         rawData.forEach((entry, idx) => {
           expect(typeof entry.start_timestamp).toBe('number');
-          expect(typeof entry.end_timestamp).toBe('number');
           expect(typeof entry.marketprice).toBe('number');
-          expect(typeof entry.unit).toBe('string');
           // Timestamps must be positive and in milliseconds (> year 2000 epoch ms)
           expect(entry.start_timestamp).toBeGreaterThan(946684800000);
-          expect(entry.end_timestamp).toBeGreaterThan(entry.start_timestamp);
           expect(isFinite(entry.marketprice)).toBe(true);
           if (entry.start_timestamp <= 0) {
             fail(`Entry ${idx} has invalid start_timestamp: ${entry.start_timestamp}`);
@@ -128,8 +124,9 @@ describe('aWATTar API – live data tests', () => {
 
       it(`contains at least 23 entries for today (${today}) — hourly intervals`, () => {
         // aWATTar returns one entry per hour; 23 is the minimum for a DST short day.
+        // Use the area timezone (same as awattar_convertDataStructure) to determine today's entries.
         const todayEntries = rawData.filter(entry => {
-          const date = DateTime.fromMillis(entry.start_timestamp);
+          const date = DateTime.fromMillis(entry.start_timestamp).setZone(defaultAreaTimezone(config));
           return date.toFormat('yyyy-MM-dd') === today;
         });
         console.log(`[${region}] Raw entries for today (${today}): ${todayEntries.length}`);
@@ -142,16 +139,6 @@ describe('aWATTar API – live data tests', () => {
         for (let i = 1; i < rawData.length; i++) {
           expect(rawData[i].start_timestamp).toBeGreaterThan(rawData[i - 1].start_timestamp);
         }
-      });
-
-      it('each hourly slot spans exactly 1 hour (end - start = 3 600 000 ms)', () => {
-        rawData.forEach((entry, idx) => {
-          const span = entry.end_timestamp - entry.start_timestamp;
-          if (span !== 3600000) {
-            fail(`Entry ${idx} has unexpected slot length: ${span} ms`);
-          }
-          expect(span).toBe(3600000);
-        });
       });
 
       // ── Converted data validation ──────────────────────────────────────────
@@ -242,7 +229,7 @@ describe('aWATTar API – live data tests', () => {
 
   describe('Cross-region: LU prices match DE prices (same aWATTar DE endpoint)', () => {
 
-    const today = todayLocal();
+    const today = todayForRegion('DE');
 
     it('LU and DE have identical hourly prices for today', () => {
       const de = (convertedByRegion.get('DE') ?? []).filter(e => e.day === today);

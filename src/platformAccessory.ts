@@ -50,6 +50,7 @@ export class NordpoolPlatformAccessory {
         await this.pricesCache.remove(todayKey);
         await this.pricesCache.remove(tomorrowKey);
         await this.pricesCache.remove('5consecutiveUpdated');
+        await this.pricesCache.remove(`solarOverrideApplied_${todayKey}`);
       } catch (error) {
         this.platform.log.error(`ERR: failed clearing pricesCache: ${JSON.stringify(error)}`);
       } finally {
@@ -68,6 +69,7 @@ export class NordpoolPlatformAccessory {
         await this.pricesCache.remove(todayKey);
         await this.pricesCache.remove(tomorrowKey);
         await this.pricesCache.remove('5consecutiveUpdated');
+        await this.pricesCache.remove(`solarOverrideApplied_${todayKey}`);
       } catch (error) {
         this.platform.log.error(`ERR: failed clearing pricesCache: ${JSON.stringify(error)}`);
       } finally {
@@ -104,9 +106,9 @@ export class NordpoolPlatformAccessory {
             }
 
             if (todayResults.length === 25 || todayResults.length === 24) {
-              this.pricesCache.set(todayKey, todayResults);
+              await this.pricesCache.set(todayKey, todayResults);
               pricing.today = todayResults;
-              this.pricesCache.set(`solarOverrideApplied_${todayKey}`, false);
+              await this.pricesCache.set(`solarOverrideApplied_${todayKey}`, false);
               this.platform.log.debug(`OK: pulled Nordpool prices in ${this.platform.config.area} area for TODAY (${todayKey})`);
               this.platform.log.debug(JSON.stringify(todayResults.map(({ hour, price }) => ({ hour, price }))));
               await this.fnc.analyze_and_setServices(currentHour);

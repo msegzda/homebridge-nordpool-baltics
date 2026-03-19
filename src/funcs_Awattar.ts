@@ -5,8 +5,8 @@ import { Logger, PlatformConfig } from 'homebridge';
 
 export async function awattar_getNordpoolData(log: Logger, config: PlatformConfig) {
   const areaTimeZone = defaultAreaTimezone(config);
-  const tomorrow = DateTime.now().plus({ days: 2 }).startOf('day').toFormat('yyyy-MM-dd');
-  const today = DateTime.now().minus({ days: 1 }).startOf('day').toFormat('yyyy-MM-dd');
+  const tomorrow = DateTime.now().setZone(areaTimeZone).plus({ days: 2 }).startOf('day').toFormat('yyyy-MM-dd');
+  const today = DateTime.now().setZone(areaTimeZone).minus({ days: 1 }).startOf('day').toFormat('yyyy-MM-dd');
 
   const domain = config.area.toLowerCase() === 'at' ? 'awattar.at' : 'awattar.de';
   const url = `https://api.${domain}/v1/marketdata?start=${today}&end=${tomorrow}`;
@@ -29,15 +29,15 @@ export async function awattar_getNordpoolData(log: Logger, config: PlatformConfi
 }
 
 export function awattar_convertDataStructure(
-  data: { start_timestamp: number; end_timestamp: number; marketprice: number; unit: string }[],
+  data: { start_timestamp: number; marketprice: number }[],
   config: PlatformConfig,
 ) {
   const areaTimeZone = defaultAreaTimezone(config);
   const decimalPrecision = config.decimalPrecision ?? 1;
 
   return data.map((item) => {
-    // start_timestamp is in milliseconds
-    const date = DateTime.fromMillis(item.start_timestamp);
+    // start_timestamp is in milliseconds — convert in area timezone, not local system timezone
+    const date = DateTime.fromMillis(item.start_timestamp).setZone(areaTimeZone);
 
     // marketprice is Eur/MWh, convert to cents/kWh by dividing by 10
     const price = parseFloat((item.marketprice / 10).toFixed(decimalPrecision));
