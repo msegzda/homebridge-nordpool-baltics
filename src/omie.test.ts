@@ -172,15 +172,21 @@ describe('OMIE API – live data tests', () => {
       const today = todayForRegion(region);
 
       beforeAll(async () => {
-        // Fetch both today and tomorrow CET files (same as omie_getNordpoolData does)
-        const todayCet = todayInMarketTz();
-        const tomorrowCet = todayCet.plus({ days: 1 });
-        const [r1, r2] = await Promise.all([
-          axios.get<string>(omieUrl(todayCet), { timeout: 15000, responseType: 'text' }),
-          axios.get<string>(omieUrl(tomorrowCet), { timeout: 15000, responseType: 'text' }).catch(() => null),
+        // Fetch yesterday, today and tomorrow CET files.
+        // Portugal (Europe/Lisbon) is 1 hour behind CET, so CET "today" hours 0-23 only
+        // cover PT hours 23 (of PT yesterday) through 22 (of PT today).  Including CET
+        // "yesterday" guarantees that PT hours 0-22 are always present regardless of
+        // what time of day the tests run.
+        const todayCet     = todayInMarketTz();
+        const yesterdayCet = todayCet.minus({ days: 1 });
+        const tomorrowCet  = todayCet.plus({ days: 1 });
+        const [r0, r1, r2] = await Promise.all([
+          axios.get<string>(omieUrl(yesterdayCet), { timeout: 15000, responseType: 'text' }).catch(() => null),
+          axios.get<string>(omieUrl(todayCet),     { timeout: 15000, responseType: 'text' }),
+          axios.get<string>(omieUrl(tomorrowCet),  { timeout: 15000, responseType: 'text' }).catch(() => null),
         ]);
         rawCsv = r1.data;
-        const combinedCsv = r2 ? rawCsv + '\n' + r2.data : rawCsv;
+        const combinedCsv = [r0?.data, rawCsv, r2?.data].filter(Boolean).join('\n');
         converted = omie_convertDataStructure(combinedCsv, region, config);
         console.log(`[${region}] Total converted entries: ${converted.length}, days: ${[...new Set(converted.map(e => e.day))].sort().join(', ')}`);
       });

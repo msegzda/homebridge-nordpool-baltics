@@ -150,31 +150,12 @@ export class Functions {
     }
   }
 
-  async checkSystemTimezone() {
-    const systemTimezone = DateTime.local().toFormat('ZZ');
-    const preferredTimezone = DateTime.local().setZone(
-      defaultAreaTimezone(this.platform.config),
-    ).toFormat('ZZ');
-
-    if (systemTimezone !== preferredTimezone) {
-      this.platform.log.warn(
-        `WARN: System timezone ${systemTimezone} DOES NOT match with ${this.platform.config.area} area timezone ${preferredTimezone}. `
-        + 'This may result in incorrect time-to-price coding. If possible, please update your system time setting to match timezone of '
-        + 'your specified Nordpool area.',
-      );
-    } else {
-      this.platform.log.debug(
-        `OK: system timezone ${systemTimezone} match ${this.platform.config.area} area timezone ${preferredTimezone}`,
-      );
-    }
-  }
-
   async applySolarOverride(config: PlatformConfig, force: boolean) {
     if (config.solarOverride === null || config.solarOverride === false) {
       return;
     }
 
-    const today = DateTime.local();
+    const today = DateTime.local().setZone(defaultAreaTimezone(config));
     const todayKey = fnc_todayKey(config);
     const solarOverrideApplied = await this.pricesCache.get(`solarOverrideApplied_${todayKey}`);
     if ( !force && solarOverrideApplied ) {
@@ -482,7 +463,7 @@ export class Functions {
   }
 
   ttlSecondsTill_7AM() {
-    const now = DateTime.local();
+    const now = DateTime.local().setZone(defaultAreaTimezone(this.platform.config));
     let next7am = now.startOf('day').plus({ hours: 6, minutes: 59 });
 
     if(now >= next7am) {

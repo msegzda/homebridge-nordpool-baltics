@@ -46,7 +46,8 @@ function mockConfig(area: SpotHintaRegion) {
 
 /** Build the API URL matching what spothinta_getNordpoolData uses */
 function spothintaUrl(area: SpotHintaRegion): string {
-  const reqDate = DateTime.now().toFormat('yyyy-MM-dd');
+  const tz = defaultAreaTimezone({ area } as never);
+  const reqDate = DateTime.now().setZone(tz).toFormat('yyyy-MM-dd');
   return `https://api.spot-hinta.fi/TodayAndDayForward?reqDate=${reqDate}&region=${area}`;
 }
 
@@ -62,6 +63,21 @@ function todayForRegion(area: SpotHintaRegion): string {
 
 describe('SpotHinta API – live data tests', () => {
 
+  // Fetch all regions concurrently once before any nested suite runs.
+  const fetchResults = new Map<SpotHintaRegion, { rawData: SpotHintaRawEntry[]; converted: NordpoolEntry[] }>();
+
+  beforeAll(async () => {
+    await Promise.all(
+      SPOTHINTA_REGIONS.map(async (region) => {
+        const url = spothintaUrl(region);
+        const response = await axios.get<SpotHintaRawEntry[]>(url, { timeout: 15000 });
+        const rawData = response.data;
+        const converted = spothinta_convertDataStructure(rawData, mockConfig(region));
+        fetchResults.set(region, { rawData, converted });
+      }),
+    );
+  });
+
   SPOTHINTA_REGIONS.forEach((region: SpotHintaRegion) => {
 
     describe(`Region ${region}`, () => {
@@ -72,12 +88,8 @@ describe('SpotHinta API – live data tests', () => {
       const config = mockConfig(region);
       const today  = todayForRegion(region);
 
-      // Download once per region before running assertions
-      beforeAll(async () => {
-        const url = spothintaUrl(region);
-        const response = await axios.get<SpotHintaRawEntry[]>(url, { timeout: 15000 });
-        rawData   = response.data;
-        converted = spothinta_convertDataStructure(rawData, config);
+      beforeAll(() => {
+        ({ rawData, converted } = fetchResults.get(region)!);
       });
 
       // ── Raw data validation ────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import { defaultAreaTimezone } from './settings';
 
 export async function spothinta_getNordpoolData(log: Logger, config: PlatformConfig) {
   const area = config.area.toUpperCase(); // Ensure the area is in uppercase (e.g., SE1, SE2, etc.)
-  const reqDate = DateTime.now().toFormat('yyyy-MM-dd');
+  const reqDate = DateTime.now().setZone(defaultAreaTimezone(config)).toFormat('yyyy-MM-dd');
   const url = `https://api.spot-hinta.fi/TodayAndDayForward?reqDate=${reqDate}&region=${area}`;
 
   try {

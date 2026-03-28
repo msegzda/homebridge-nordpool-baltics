@@ -25,7 +25,6 @@ export class NordpoolPlatformAccessory {
 
     this.fnc.initAccessories()
       .then(() => {
-        this.fnc.checkSystemTimezone();
         this.getPrices();
 
         schedule('0 * * * *', () => {
