@@ -19,6 +19,9 @@ const R2_BASE_URL = 'https://pub-460c981173fb4262a268d6f273d18dd2.r2.dev';
 
 /** Regions served by the Elering / R2 pipeline */
 const ELERING_REGIONS = ['EE', 'LT', 'LV', 'FI'] as const;
+
+/** Stores converted output per region so the suite-level DST section can access it. */
+const convertedByRegion = new Map<EleringRegion, NordpoolEntry[]>();
 type EleringRegion = typeof ELERING_REGIONS[number];
 
 /** Raw shape stored in each R2 JSON file */
@@ -72,6 +75,7 @@ describe('Elering R2 Cloudflare – live data tests', () => {
         const response = await axios.get<EleringRawEntry[]>(url, { timeout: 15000 });
         rawData   = response.data;
         converted = eleringEE_convertDataStructure(rawData, config);
+        convertedByRegion.set(region, converted);
       });
 
       // ── Raw data validation ────────────────────────────────────────────────
@@ -208,5 +212,41 @@ describe('Elering R2 Cloudflare – live data tests', () => {
     }); // describe region
 
   }); // ELERING_REGIONS.forEach
+
+  // ── DST spring-forward: tomorrow must have the right number of hourly slots ──
+
+  describe('DST spring-forward – tomorrow has the correct number of hourly price slots', () => {
+
+    /**
+     * Returns the number of local hours in a calendar day.
+     * Returns 23 on a spring-forward DST day, 24 on a normal day.
+     */
+    function hoursInDay(dateStr: string, tz: string): number {
+      const start = DateTime.fromISO(dateStr, { zone: tz });
+      return Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours);
+    }
+
+    ELERING_REGIONS.forEach((region: EleringRegion) => {
+
+      const tz       = defaultAreaTimezone(mockConfig(region));
+      const tomorrow = DateTime.local().setZone(tz).plus({ days: 1 }).toFormat('yyyy-MM-dd');
+      const isDstDay = hoursInDay(tomorrow, tz) === 23;
+      // Only activate this test on the eve of a DST spring-forward day.
+      const testFn   = isDstDay ? it : it.skip;
+
+      testFn(`[${region}] tomorrow (${tomorrow}) has exactly 23 hourly price slots on DST spring-forward day`, () => {
+        const tomorrowEntries = (convertedByRegion.get(region) ?? []).filter(e => e.day === tomorrow);
+        const uniqueHours     = new Set(tomorrowEntries.map(e => e.hour));
+
+        console.log(
+          `[${region}] Tomorrow ${tomorrow}: ${uniqueHours.size} unique hours (DST spring-forward ⏰)`
+        );
+
+        expect(uniqueHours.size).toBe(23);
+      });
+
+    }); // ELERING_REGIONS.forEach
+
+  }); // describe DST
 
 }); // describe suite

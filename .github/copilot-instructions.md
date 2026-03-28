@@ -71,10 +71,10 @@ Full architecture details (Cloudflare Worker, Homebridge provider, live tests) a
 
 When asked to create a release or new version, do ALL of the following:
 
-1. **Update `package.json` `version`** to match the new version number.
+1. **Update `package.json` `version`** to match specified new version number. If version number is not specified in the prompt or request, ask user if they want to increment the patch version (e.g. 1.2.3 → 1.2.4) following semantic versioning rules.
 2. **Update `CHANGELOG.md`** — add a new entry at the top for the new version. Use plain language a non-technical user can understand. Lead with new features and supported countries/regions. Keep internal/CI changes brief at the bottom. No commit hashes, no technical jargon.
 3. **Commit** both files together with a short descriptive commit message.
-4. **Create an annotated git tag** for the new version.
+4. **Create an annotated git tag** for the new version. Tag is matching new version number (e.g. `v1.2.4`) and tag message is the same as the `CHANGELOG.md` entry for that version.
 5. **Push** commits and the tag to origin.
 6. **Create a GitHub Release** using `gh release create <tag>` with a user-friendly title and release notes. Use `gh` CLI (install via `brew install gh` if missing). Release notes must: lead with new features/countries in bold, be written in plain language, and omit internal/CI details unless they affect users.
 
@@ -82,7 +82,7 @@ When asked to create a release or new version, do ALL of the following:
 
 - Lead with the most valuable user-facing changes (new countries, new features, bug fixes that affect behaviour).
 - Use **bold** for new country or feature names.
-- Word electricity or matter related to it should be decorated with ⚡️ character when logical.
+- Word electricity or anything related to it should be decorated with ⚡️ character when logical.
 - Do not copy commit messages — rewrite for a non-technical audience. Do not mention provider or API name, authorisation to it whatsoever.
 - Keep it short: ±6 bullet points maximum.
 - Internal work (CI, tests, tooling) goes last and only if worth mentioning at all.

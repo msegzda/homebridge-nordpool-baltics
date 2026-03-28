@@ -84,7 +84,8 @@ function todayForRegion(area: OmieRegion): string {
 // ──────────────────────────────────────────────────
 
 describe('OMIE API – live data tests', () => {
-
+  /** Stores converted output per region so the suite-level DST section can access it. */
+  const convertedByRegion = new Map<OmieRegion, NordpoolEntry[]>();
   // ── Shared raw CSV tests (fetched once, shared across ES & PT) ──────────────
 
   describe('Raw CSV – today\'s OMIE file', () => {
@@ -172,22 +173,27 @@ describe('OMIE API – live data tests', () => {
       const today = todayForRegion(region);
 
       beforeAll(async () => {
-        // Fetch yesterday, today and tomorrow CET files.
-        // Portugal (Europe/Lisbon) is 1 hour behind CET, so CET "today" hours 0-23 only
-        // cover PT hours 23 (of PT yesterday) through 22 (of PT today).  Including CET
-        // "yesterday" guarantees that PT hours 0-22 are always present regardless of
-        // what time of day the tests run.
-        const todayCet     = todayInMarketTz();
-        const yesterdayCet = todayCet.minus({ days: 1 });
-        const tomorrowCet  = todayCet.plus({ days: 1 });
-        const [r0, r1, r2] = await Promise.all([
-          axios.get<string>(omieUrl(yesterdayCet), { timeout: 15000, responseType: 'text' }).catch(() => null),
-          axios.get<string>(omieUrl(todayCet),     { timeout: 15000, responseType: 'text' }),
-          axios.get<string>(omieUrl(tomorrowCet),  { timeout: 15000, responseType: 'text' }).catch(() => null),
+        // Fetch CET files: yesterday, today, tomorrow, and day-after-tomorrow.
+        //
+        // Portugal (Europe/Lisbon, WET→WEST) is 1 hour behind CET, so:
+        //   - CET yesterday covers PT hour 23 of the day before today.
+        //   - CET today     covers PT hours 0–22 of today (PT hour 23 is in CET tomorrow).
+        //   - CET tomorrow  covers PT hours 0–22 of tomorrow (PT hour 23 is in CET day+2).
+        //   - CET day+2     covers PT hour 23 of tomorrow.
+        //
+        // Including all four files ensures complete 23-/24-hour coverage for both today
+        // and tomorrow in both the ES and PT local timezones, including on DST days.
+        const todayCet   = todayInMarketTz();
+        const [r0, r1, r2, r3] = await Promise.all([
+          axios.get<string>(omieUrl(todayCet.minus({ days: 1 })), { timeout: 15000, responseType: 'text' }).catch(() => null),
+          axios.get<string>(omieUrl(todayCet),                    { timeout: 15000, responseType: 'text' }),
+          axios.get<string>(omieUrl(todayCet.plus({ days: 1 })),  { timeout: 15000, responseType: 'text' }).catch(() => null),
+          axios.get<string>(omieUrl(todayCet.plus({ days: 2 })),  { timeout: 15000, responseType: 'text' }).catch(() => null),
         ]);
         rawCsv = r1.data;
-        const combinedCsv = [r0?.data, rawCsv, r2?.data].filter(Boolean).join('\n');
+        const combinedCsv = [r0?.data, rawCsv, r2?.data, r3?.data].filter(Boolean).join('\n');
         converted = omie_convertDataStructure(combinedCsv, region, config);
+        convertedByRegion.set(region, converted);
         console.log(`[${region}] Total converted entries: ${converted.length}, days: ${[...new Set(converted.map(e => e.day))].sort().join(', ')}`);
       });
 
@@ -258,5 +264,41 @@ describe('OMIE API – live data tests', () => {
     }); // describe region
 
   }); // OMIE_REGIONS.forEach
+
+  // ── DST spring-forward: tomorrow must have the right number of hourly slots ──
+
+  describe('DST spring-forward – tomorrow has the correct number of hourly price slots', () => {
+
+    /**
+     * Returns the number of local hours in a calendar day.
+     * Returns 23 on a spring-forward DST day, 24 on a normal day.
+     */
+    function hoursInDay(dateStr: string, tz: string): number {
+      const start = DateTime.fromISO(dateStr, { zone: tz });
+      return Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours);
+    }
+
+    OMIE_REGIONS.forEach((region: OmieRegion) => {
+
+      const tz             = defaultAreaTimezone({ area: region } as never);
+      const tomorrow       = DateTime.now().setZone(tz).plus({ days: 1 }).toFormat('yyyy-MM-dd');
+      const isDstDay       = hoursInDay(tomorrow, tz) === 23;
+      // Only activate this test on the eve of a DST spring-forward day.
+      const testFn         = isDstDay ? it : it.skip;
+
+      testFn(`[${region}] tomorrow (${tomorrow}) has exactly 23 hourly price slots on DST spring-forward day`, () => {
+        const tomorrowEntries = (convertedByRegion.get(region) ?? []).filter(e => e.day === tomorrow);
+        const uniqueHours     = new Set(tomorrowEntries.map(e => e.hour));
+
+        console.log(
+          `[${region}] Tomorrow ${tomorrow}: ${uniqueHours.size} unique hours (DST spring-forward ⏰)`
+        );
+
+        expect(uniqueHours.size).toBe(23);
+      });
+
+    }); // OMIE_REGIONS.forEach
+
+  }); // describe DST
 
 }); // describe suite

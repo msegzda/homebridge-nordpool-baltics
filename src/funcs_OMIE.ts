@@ -53,15 +53,18 @@ export function omie_convertDataStructure(
     // Convert EUR/MWh → cents/kWh by dividing by 10
     const priceCentsKwh = parseFloat((priceEurMwh / 10).toFixed(decimalPrecision));
 
-    // OMIE quarter index (1-based) → local hour and minute in market timezone (CET)
-    const hour = Math.floor((quarter - 1) / 4);
-    const minute = ((quarter - 1) % 4) * 15;
-
-    // Build CET timestamp then convert to the configured area timezone
+    // Each quarter index (1-based) represents 15 minutes of elapsed real time since the
+    // start of the CET calendar day.  Using DateTime.fromObject with a derived local hour
+    // breaks on DST spring-forward days because the computed hour (e.g. 02:00 CET) does
+    // not exist in local time — Luxon snaps it to the next valid time and two price slots
+    // collapse onto the same hour.  Instead, add elapsed minutes to the unambiguous
+    // start-of-day UTC instant and let Luxon resolve the DST transition automatically.
+    const offsetMinutes = (quarter - 1) * 15;
     const dt = DateTime.fromObject(
-      { year, month, day, hour, minute },
+      { year, month, day, hour: 0, minute: 0, second: 0 },
       { zone: OMIE_MARKET_TIMEZONE },
-    ).setZone(defaultAreaTimezone(config));
+    ).plus({ minutes: offsetMinutes })
+      .setZone(defaultAreaTimezone(config));
 
     results.push({
       day: dt.toFormat('yyyy-MM-dd'),

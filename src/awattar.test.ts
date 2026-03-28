@@ -252,4 +252,40 @@ describe('aWATTar API – live data tests', () => {
 
   }); // describe cross-region
 
+  // ── DST spring-forward: tomorrow must have the right number of hourly slots ──
+
+  describe('DST spring-forward – tomorrow has the correct number of hourly price slots', () => {
+
+    /**
+     * Returns the number of local hours in a calendar day.
+     * Returns 23 on a spring-forward DST day, 24 on a normal day.
+     */
+    function hoursInDay(dateStr: string, tz: string): number {
+      const start = DateTime.fromISO(dateStr, { zone: tz });
+      return Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours);
+    }
+
+    AWATTAR_REGIONS.forEach((region: AwattarRegion) => {
+
+      const tz       = defaultAreaTimezone({ area: region } as never);
+      const tomorrow = DateTime.now().setZone(tz).plus({ days: 1 }).toFormat('yyyy-MM-dd');
+      const isDstDay = hoursInDay(tomorrow, tz) === 23;
+      // Only activate this test on the eve of a DST spring-forward day.
+      const testFn   = isDstDay ? it : it.skip;
+
+      testFn(`[${region}] tomorrow (${tomorrow}) has exactly 23 hourly price slots on DST spring-forward day`, () => {
+        const tomorrowEntries = (convertedByRegion.get(region) ?? []).filter(e => e.day === tomorrow);
+        const uniqueHours     = new Set(tomorrowEntries.map(e => e.hour));
+
+        console.log(
+          `[${region}] Tomorrow ${tomorrow}: ${uniqueHours.size} unique hours (DST spring-forward ⏰)`
+        );
+
+        expect(uniqueHours.size).toBe(23);
+      });
+
+    }); // AWATTAR_REGIONS.forEach
+
+  }); // describe DST
+
 }); // describe suite
