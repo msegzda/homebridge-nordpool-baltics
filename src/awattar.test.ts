@@ -71,6 +71,23 @@ function todayForRegion(area: AwattarRegion): string {
   return DateTime.now().setZone(tz).toFormat('yyyy-MM-dd');
 }
 
+/** Returns the number of local hours in a calendar day (23 on spring-forward, 24 on normal). */
+function hoursInDay(dateStr: string, tz: string): number {
+  const start = DateTime.fromISO(dateStr, { zone: tz });
+  return Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours);
+}
+
+/** Returns the local clock hour skipped by DST spring-forward, or null on a normal day. */
+function dstMissingHour(dateStr: string, tz: string): number | null {
+  const start = DateTime.fromISO(dateStr, { zone: tz });
+  if (Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours) !== 23) return null;
+  for (let h = 0; h <= 23; h++) {
+    const dt = start.plus({ hours: h });
+    if (dt.hour !== h) return h;
+  }
+  return null;
+}
+
 // ──────────────────────────────────────────────────
 // Test suite
 // ──────────────────────────────────────────────────
@@ -84,8 +101,11 @@ describe('aWATTar API – live data tests', () => {
       let rawData: AwattarRawEntry[];
       let converted: NordpoolEntry[];
 
-      const config = mockConfig(region);
-      const today  = todayForRegion(region);
+      const config      = mockConfig(region);
+      const today       = todayForRegion(region);
+      const tz          = defaultAreaTimezone(config);
+      const isDstToday  = hoursInDay(today, tz) === 23;
+      const missingHour = dstMissingHour(today, tz);
 
       // Download once per region before running assertions
       beforeAll(async () => {
@@ -178,6 +198,7 @@ describe('aWATTar API – live data tests', () => {
         const uniqueHours = [...new Set(hours)].sort((a, b) => a - b);
         console.log(`[${region}] Unique hours found for today: ${uniqueHours.join(', ')}`);
         for (let h = 0; h <= 22; h++) {
+          if (h === missingHour) continue; // On DST spring-forward day this hour does not exist
           expect(uniqueHours).toContain(h);
         }
       });
@@ -255,15 +276,6 @@ describe('aWATTar API – live data tests', () => {
   // ── DST spring-forward: tomorrow must have the right number of hourly slots ──
 
   describe('DST spring-forward – tomorrow has the correct number of hourly price slots', () => {
-
-    /**
-     * Returns the number of local hours in a calendar day.
-     * Returns 23 on a spring-forward DST day, 24 on a normal day.
-     */
-    function hoursInDay(dateStr: string, tz: string): number {
-      const start = DateTime.fromISO(dateStr, { zone: tz });
-      return Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours);
-    }
 
     AWATTAR_REGIONS.forEach((region: AwattarRegion) => {
 

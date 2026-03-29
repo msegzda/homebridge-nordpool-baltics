@@ -52,6 +52,23 @@ function todayIn(timezone: string): string {
   return DateTime.local().setZone(timezone).toFormat('yyyy-MM-dd');
 }
 
+/** Returns the number of local hours in a calendar day (23 on spring-forward, 24 on normal). */
+function hoursInDay(dateStr: string, tz: string): number {
+  const start = DateTime.fromISO(dateStr, { zone: tz });
+  return Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours);
+}
+
+/** Returns the local clock hour skipped by DST spring-forward, or null on a normal day. */
+function dstMissingHour(dateStr: string, tz: string): number | null {
+  const start = DateTime.fromISO(dateStr, { zone: tz });
+  if (Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours) !== 23) return null;
+  for (let h = 0; h <= 23; h++) {
+    const dt = start.plus({ hours: h });
+    if (dt.hour !== h) return h;
+  }
+  return null;
+}
+
 // ──────────────────────────────────────────────────
 // Test suite
 // ──────────────────────────────────────────────────
@@ -65,9 +82,11 @@ describe('Elering R2 Cloudflare – live data tests', () => {
       let rawData: EleringRawEntry[];
       let converted: NordpoolEntry[];
 
-      const config    = mockConfig(region);
-      const timezone  = defaultAreaTimezone(config);
-      const today     = todayIn(timezone);
+      const config      = mockConfig(region);
+      const timezone    = defaultAreaTimezone(config);
+      const today       = todayIn(timezone);
+      const isDstToday  = hoursInDay(today, timezone) === 23;
+      const missingHour = dstMissingHour(today, timezone);
 
       // Download once per region before running assertions
       beforeAll(async () => {
@@ -162,6 +181,7 @@ describe('Elering R2 Cloudflare – live data tests', () => {
         console.log(`[${region}] Unique hours found for today: ${uniqueHours.join(', ')}`);
 
         for (let h = 0; h <= 22; h++) {
+          if (h === missingHour) continue; // On DST spring-forward day this hour does not exist
           expect(hours).toContain(h);
         }
       });
@@ -195,8 +215,8 @@ describe('Elering R2 Cloudflare – live data tests', () => {
         byhour.forEach((count, hour) => {
           expect(count).toBe(4);
         });
-        // And we should have all 24 hours represented
-        expect(byhour.size).toBe(24);
+        // And we should have all 24 hours represented (23 on DST spring-forward day)
+        expect(byhour.size).toBe(isDstToday ? 23 : 24);
       });
 
       it('decimal precision is applied (max 2 decimal places)', () => {
@@ -216,15 +236,6 @@ describe('Elering R2 Cloudflare – live data tests', () => {
   // ── DST spring-forward: tomorrow must have the right number of hourly slots ──
 
   describe('DST spring-forward – tomorrow has the correct number of hourly price slots', () => {
-
-    /**
-     * Returns the number of local hours in a calendar day.
-     * Returns 23 on a spring-forward DST day, 24 on a normal day.
-     */
-    function hoursInDay(dateStr: string, tz: string): number {
-      const start = DateTime.fromISO(dateStr, { zone: tz });
-      return Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours);
-    }
 
     ELERING_REGIONS.forEach((region: EleringRegion) => {
 

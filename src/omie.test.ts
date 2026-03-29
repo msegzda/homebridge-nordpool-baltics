@@ -79,6 +79,23 @@ function todayForRegion(area: OmieRegion): string {
   return DateTime.now().setZone(tz).toFormat('yyyy-MM-dd');
 }
 
+/** Returns the number of local hours in a calendar day (23 on spring-forward, 24 on normal). */
+function hoursInDay(dateStr: string, tz: string): number {
+  const start = DateTime.fromISO(dateStr, { zone: tz });
+  return Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours);
+}
+
+/** Returns the local clock hour skipped by DST spring-forward, or null on a normal day. */
+function dstMissingHour(dateStr: string, tz: string): number | null {
+  const start = DateTime.fromISO(dateStr, { zone: tz });
+  if (Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours) !== 23) return null;
+  for (let h = 0; h <= 23; h++) {
+    const dt = start.plus({ hours: h });
+    if (dt.hour !== h) return h;
+  }
+  return null;
+}
+
 // ──────────────────────────────────────────────────
 // Test suite
 // ──────────────────────────────────────────────────
@@ -169,8 +186,11 @@ describe('OMIE API – live data tests', () => {
       let rawCsv: string;
       let converted: NordpoolEntry[];
 
-      const config = mockConfig(region);
-      const today = todayForRegion(region);
+      const config      = mockConfig(region);
+      const today       = todayForRegion(region);
+      const tz          = defaultAreaTimezone(config);
+      const isDstToday  = hoursInDay(today, tz) === 23;
+      const missingHour = dstMissingHour(today, tz);
 
       beforeAll(async () => {
         // Fetch CET files: yesterday, today, tomorrow, and day-after-tomorrow.
@@ -215,7 +235,11 @@ describe('OMIE API – live data tests', () => {
       it(`has today's (${today}) prices in the converted output (≥ 92 entries)`, () => {
         const todayPrices = converted.filter(item => item.day === today);
         console.log(`[${region}] Converted entries for today (${today}): ${todayPrices.length}`);
-        expect(todayPrices.length).toBeGreaterThanOrEqual(92);
+        // PT on a DST day loses hour 1 (clock skipped) and potentially hour 23 (CET day+2 file
+        // may not be published yet), giving 22 × 4 = 88 entries minimum.
+        // ES on a DST day has 23 × 4 = 92 entries (hour 2 skipped, but no cross-day dependency).
+        const minEntries = (region === 'PT' && isDstToday) ? 88 : 92;
+        expect(todayPrices.length).toBeGreaterThanOrEqual(minEntries);
       });
 
       it(`covers at least hours 0–22 for today (${today})`, () => {
@@ -224,6 +248,7 @@ describe('OMIE API – live data tests', () => {
         )].sort((a, b) => a - b);
         console.log(`[${region}] Unique hours for today: ${hours.join(', ')}`);
         for (let h = 0; h <= 22; h++) {
+          if (h === missingHour) continue; // On DST spring-forward day this hour does not exist
           expect(hours).toContain(h);
         }
       });
@@ -268,15 +293,6 @@ describe('OMIE API – live data tests', () => {
   // ── DST spring-forward: tomorrow must have the right number of hourly slots ──
 
   describe('DST spring-forward – tomorrow has the correct number of hourly price slots', () => {
-
-    /**
-     * Returns the number of local hours in a calendar day.
-     * Returns 23 on a spring-forward DST day, 24 on a normal day.
-     */
-    function hoursInDay(dateStr: string, tz: string): number {
-      const start = DateTime.fromISO(dateStr, { zone: tz });
-      return Math.round(start.plus({ days: 1 }).diff(start, 'hours').hours);
-    }
 
     OMIE_REGIONS.forEach((region: OmieRegion) => {
 
