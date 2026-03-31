@@ -49,7 +49,17 @@
         "mv": true,
         "q": true,
         "npx jest": true,
-        "npm pack": true
+        "npm pack": true,
+        "hb-service": true,
+        "/^sudo hb-service restart/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^npm run deploylocal 2>&1 && sudo hb-service restart 2>&1$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "systemsetup": true
     },
     "cSpell.ignoreWords": ["funcs"]
 }

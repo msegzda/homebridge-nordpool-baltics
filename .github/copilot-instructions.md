@@ -11,7 +11,7 @@ Follow these repository-specific rules to be productive immediately.
 
 ## Key files to inspect
 
-- Core: [src/index.ts](../src/index.ts), [src/platform.ts](../src/platform.ts), [src/platformAccessory.ts](../src/platformAccessory.ts), [src/functions.ts](../src/functions.ts)
+- Core: `src/index.ts`, `src/platform.ts`, `src/platformAccessory.ts`, `src/functions.ts`
 - Config/constants: `src/settings.ts`,`config.schema.json`
 - Dev & publish scripts: `package.json`
 
@@ -29,6 +29,8 @@ Follow these repository-specific rules to be productive immediately.
 - Build: `npm run build` (outputs into `dist/`, `main` points to `dist/index.js`).
 - Deploylocal (deploy to local Homebridge): `npm run deploylocal`
 - Dev homebridge logs tail: `hb-service logs -f`
+- Restart local Homebridge: `sudo hb-service restart`. **Always restart after switching the local Homebridge `area` (country) in `~/.homebridge/config.json`.**
+- **When switching the local Homebridge `area` (country), also update the system timezone to match the area using `sudo ln -sf /var/db/timezone/zoneinfo/<Timezone> /etc/localtime` (e.g. `Europe/Lisbon` for PT, `Europe/Vilnius` for LT). The correct timezone for each area is defined in `defaultAreaTimezone()` in `src/settings.ts`. Then run `deploylocal` restart Homebridge.**
 - Tests & lint: `npm test` runs `jest` and markdown lint; `npm run lint` runs `eslint` on `src/**.ts`.
 - Publishing: `npm publish` triggers `prepublishOnly` (`lint` + `build`) and `postpublish` runs `scripts/deprecate-old-versions.mjs`.
 - Node & Homebridge versions: see `package.json` `engines` for supported Node/homebridge ranges — match these when running dev or CI.
@@ -42,7 +44,7 @@ Follow these repository-specific rules to be productive immediately.
 
 ## Elering data pipeline
 
-Full architecture details (Cloudflare Worker, Homebridge provider, live tests) are in [.github/elering-pipeline.md](elering-pipeline.md). Read it before touching `nordpool-cf/`, `src/funcs_Elering.ts`, or `src/elering.test.ts`.
+Full architecture details (Cloudflare Worker, Homebridge provider, live tests) are in `.github/elering-pipeline.md`. Read it before touching `nordpool-cf/`, `src/funcs_Elering.ts`, or `src/elering.test.ts`.
 
 ## OMIE data provider (Spain & Portugal)
 
