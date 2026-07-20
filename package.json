@@ -1,7 +1,7 @@
 {
     "displayName": "Homebridge Nordpool Baltics",
     "name": "homebridge-nordpool-baltics",
-    "version": "2.2.3",
+    "version": "2.2.4",
     "private": false,
     "description": "Plugin exposes virtual accessories (switch, light, presence, temperature) and enables HomeKit automation by Nordpool electricity price in Lithuania, Latvia, Estonia, Finland, Sweden, Norway, Denmark, Germany, Luxembourg, Austria, Spain, Portugal.",
     "homepage": "https://github.com/msegzda/homebridge-nordpool-baltics",
@@ -51,8 +51,8 @@
         "requiredChildBridge": false
     },
     "engines": {
-        "node": "^18.17.0 || ^20.9.0 || ^22.11.0 || ^24.0.0",
-        "homebridge": "^1.6.0 || ^2.0.0-beta.20"
+        "node": "^22.11.0 || ^24.0.0",
+        "homebridge": "^1.6.0 || ^2.1.0 || ^2.2.0"
     },
     "main": "dist/index.js",
     "scripts": {
